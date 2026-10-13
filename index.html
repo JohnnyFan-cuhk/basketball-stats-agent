@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>篮球队数据助手 · M1 原型</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏀</text></svg>">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">🏀 内地生协队 · 数据助手</div>
+    <div class="tagline">为「1 个人、赛后 5 分钟录入」设计的球队数据工具 —— M1 原型</div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="dashboard">📊 数据看板</button>
+    <button class="tab" data-tab="games">🏀 比赛记录</button>
+    <button class="tab" data-tab="training">🏋️ 训练负荷</button>
+    <button class="tab" data-tab="entry">✍️ 赛后录入</button>
+    <button class="tab" data-tab="report">🤖 AI 报告</button>
+  </nav>
+
+  <main id="main">
+    <!-- 各 tab 内容由 app.js 渲染 -->
+  </main>
+
+  <footer class="footer">
+    M1 原型 · 数据保存在本浏览器（localStorage）· AI 报告为预置示例，M2 接入 GLM Agent 后自动生成
+  </footer>
+
+  <script src="js/chart.umd.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
