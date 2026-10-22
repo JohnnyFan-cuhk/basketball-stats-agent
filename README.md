@@ -2,6 +2,8 @@
 
 > 为「1 个人、赛后 5 分钟录入」设计的业余篮球队数据工具。
 > M1 原型：纯前端、零依赖部署、离线可用。M2 接入 GLM Agent 自动生成赛后分析报告。
+>
+> 🔗 **在线演示**：[johnnyfan-cuhk.github.io/basketball-stats-agent](https://johnnyfan-cuhk.github.io/basketball-stats-agent/)
 
 ## 为什么做这个
 
