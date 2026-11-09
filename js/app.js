@@ -564,8 +564,10 @@ function renderReport(main) {
       <div class="btn-row">
         <button class="btn" id="btnGen">🤖 生成 AI 报告</button>
         <button class="btn ghost" id="btnSample">查看示例版式</button>
+        <button class="btn ghost" id="btnCard">📤 生成战报卡</button>
       </div>
       <div class="ai-status" id="aiStatus" style="display:none"></div>
+      <div id="cardPreview" style="margin-top:14px"></div>
     </div>
 
     <div id="aiReportArea">${aiReport ? renderAIReport(aiReport, aiMeta) : renderSampleReport()}</div>
@@ -591,6 +593,7 @@ function renderReport(main) {
   });
 
   $('#btnGen').addEventListener('click', () => generateReport($('#aiGame').value));
+  $('#btnCard').addEventListener('click', () => showShareCard($('#aiGame').value));
   $('#btnSample').addEventListener('click', () => {
     aiReport = null; aiMeta = null;
     $('#aiReportArea').innerHTML = renderSampleReport();
@@ -808,6 +811,220 @@ function renderAIReport(rep, meta) {
 
     ${rep.note ? `<div class="card"><div class="hint" style="margin-bottom:0">📝 ${esc(rep.note)}</div></div>` : ''}
   `;
+}
+
+/* ---------- 战报分享卡（canvas → PNG，增长飞轮核心） ----------
+ * 设计：比分 + 各节 + MVP + 一句金句 + 二维码。
+ * 金句优先引用已生成的 AI 报告第一条洞察；没有就自动拼 MVP 数据线。
+ * 二维码指向线上站点——对手队扫码录入第一场，飞轮闭环。
+ */
+
+const PRODUCT_URL = 'https://johnnyfan-cuhk.github.io/basketball-stats-agent/';
+const CARD_FONT = "'Microsoft YaHei', 'PingFang SC', sans-serif";
+
+function rr(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+  else ctx.rect(x, y, w, h);
+}
+
+function wrapText(ctx, text, x, y, maxW, lineH, maxLines) {
+  let line = '', lines = 0;
+  for (const ch of String(text)) {
+    if (ctx.measureText(line + ch).width > maxW && line) {
+      lines++;
+      if (lines >= maxLines) {
+        ctx.fillText(line.slice(0, -1) + '…', x, y);
+        return y;
+      }
+      ctx.fillText(line, x, y);
+      y += lineH;
+      line = ch;
+    } else {
+      line += ch;
+    }
+  }
+  if (line) { ctx.fillText(line, x, y); y += lineH; }
+  return y;
+}
+
+function pickMVP(g) {
+  const rows = g.stats.slice().sort((a, b) => b.pts - a.pts || b.reb - a.reb);
+  for (const s of rows) {
+    const p = db.players.find(x => x.id === s.playerId);
+    if (p) return { p, s };
+  }
+  return null;
+}
+
+function shareInsightLine(g) {
+  if (aiReport && aiMeta && aiMeta.gameId === g.id &&
+      Array.isArray(aiReport.insights) && aiReport.insights[0]) {
+    const i = aiReport.insights[0];
+    return (i.title ? i.title + '：' : '') + (i.text || '');
+  }
+  const res = gameResult(g) === 'win' ? '拿下' : gameResult(g) === 'loss' ? '憾负' : '战平';
+  const m = pickMVP(g);
+  return m
+    ? `${res} ${g.opponent} · MVP ${m.p.name} ${m.s.pts}分${m.s.reb}篮板`
+    : `${res} ${g.opponent}`;
+}
+
+function buildShareCard(g) {
+  const W = 720, H = 960;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  const us = teamScore(g, 'us'), them = teamScore(g, 'them');
+  const res = gameResult(g);
+
+  // 背景 + 描边
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#181b28');
+  grad.addColorStop(1, '#101219');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = '#2c3145';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(1, 1, W - 2, H - 2);
+
+  // 品牌行
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#9aa3b2';
+  ctx.font = `20px ${CARD_FONT}`;
+  ctx.fillText('🏀 篮球队数据助手', 40, 56);
+  ctx.textAlign = 'right';
+  ctx.fillText(g.date, W - 40, 56);
+  ctx.fillStyle = '#f97316';
+  ctx.fillRect(40, 74, 84, 4);
+
+  // 比分
+  ctx.textAlign = 'center';
+  ctx.font = `900 96px ${CARD_FONT}`;
+  ctx.fillStyle = '#f97316';
+  ctx.fillText(String(us), W / 2 - 120, 228);
+  ctx.fillStyle = '#9aa3b2';
+  ctx.fillText(String(them), W / 2 + 120, 228);
+  ctx.fillStyle = '#3a405a';
+  ctx.font = `bold 72px ${CARD_FONT}`;
+  ctx.fillText(':', W / 2, 222);
+  ctx.font = `24px ${CARD_FONT}`;
+  ctx.fillStyle = '#e8eaf0';
+  ctx.fillText('我方', W / 2 - 120, 266);
+  ctx.fillStyle = '#9aa3b2';
+  const opp = g.opponent.length > 9 ? g.opponent.slice(0, 9) + '…' : g.opponent;
+  ctx.fillText(opp, W / 2 + 120, 266);
+
+  // 胜负徽章
+  const bColor = res === 'win' ? '#34d399' : res === 'loss' ? '#f87171' : '#9aa3b2';
+  ctx.fillStyle = bColor + '26';
+  rr(ctx, W / 2 - 40, 292, 80, 38, 19);
+  ctx.fill();
+  ctx.fillStyle = bColor;
+  ctx.font = `bold 24px ${CARD_FONT}`;
+  ctx.fillText(res === 'win' ? '胜' : res === 'loss' ? '负' : '平', W / 2, 319);
+
+  // 各节比分
+  ctx.fillStyle = '#9aa3b2';
+  ctx.font = `18px ${CARD_FONT}`;
+  ctx.fillText(`各节 ${g.us.join('-')} ｜ 对方 ${g.them.join('-')}`, W / 2, 364);
+
+  // 分隔线
+  ctx.strokeStyle = '#2c3145';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(40, 392);
+  ctx.lineTo(W - 40, 392);
+  ctx.stroke();
+
+  // MVP
+  const m = pickMVP(g);
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#f97316';
+  ctx.font = `22px ${CARD_FONT}`;
+  ctx.fillText('🏆 本场 MVP', 40, 436);
+  if (m) {
+    ctx.fillStyle = '#e8eaf0';
+    ctx.font = `bold 36px ${CARD_FONT}`;
+    ctx.fillText(`#${m.p.number} ${m.p.name}`, 40, 486);
+    ctx.fillStyle = '#9aa3b2';
+    ctx.font = `24px ${CARD_FONT}`;
+    ctx.fillText(`${m.s.pts}分 · ${m.s.reb}篮板 · ${m.s.ast}助攻`, 40, 524);
+  } else {
+    ctx.fillStyle = '#9aa3b2';
+    ctx.font = `24px ${CARD_FONT}`;
+    ctx.fillText('本场暂无球员数据', 40, 486);
+  }
+
+  // 金句框（优先 AI 洞察）
+  ctx.fillStyle = 'rgba(249,115,22,0.08)';
+  rr(ctx, 40, 560, W - 80, 150, 14);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(249,115,22,0.4)';
+  rr(ctx, 40, 560, W - 80, 150, 14);
+  ctx.stroke();
+  ctx.fillStyle = '#e8eaf0';
+  ctx.font = `24px ${CARD_FONT}`;
+  wrapText(ctx, shareInsightLine(g), 64, 604, W - 128, 38, 3);
+
+  // 二维码
+  ctx.fillStyle = '#ffffff';
+  rr(ctx, 40, 736, 160, 160, 14);
+  ctx.fill();
+  const qr = qrcode(0, 'M');
+  qr.addData(PRODUCT_URL);
+  qr.make();
+  const count = qr.getModuleCount();
+  const cell = 124 / count;
+  ctx.fillStyle = '#12141c';
+  for (let r = 0; r < count; r++) {
+    for (let c = 0; c < count; c++) {
+      if (qr.isDark(r, c)) {
+        ctx.fillRect(58 + c * cell, 754 + r * cell, cell + 0.4, cell + 0.4);
+      }
+    }
+  }
+  ctx.fillStyle = '#e8eaf0';
+  ctx.font = `bold 24px ${CARD_FONT}`;
+  ctx.fillText('扫码生成你队的 AI 战报', 224, 786);
+  ctx.fillStyle = '#9aa3b2';
+  ctx.font = `19px ${CARD_FONT}`;
+  ctx.fillText('1 人录入 · 5 分钟 · 免费 AI 分析', 224, 822);
+  ctx.font = `16px ${CARD_FONT}`;
+  ctx.fillText('johnnyfan-cuhk.github.io', 224, 852);
+
+  // 底部
+  ctx.fillStyle = '#f97316';
+  ctx.font = `bold 18px ${CARD_FONT}`;
+  ctx.fillText('让业余球队也有专业分析', 40, 932);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#565e73';
+  ctx.fillText('每场比赛都值得复盘', W - 40, 932);
+  return canvas;
+}
+
+function showShareCard(gameId) {
+  const g = db.games.find(x => x.id === gameId);
+  if (!g) return;
+  const canvas = buildShareCard(g);
+  canvas.style.cssText = 'width:100%;max-width:340px;border-radius:12px;border:1px solid var(--border);display:block;margin:0 auto;';
+  const area = $('#cardPreview');
+  area.innerHTML = '';
+  area.appendChild(canvas);
+  const btn = document.createElement('button');
+  btn.className = 'btn';
+  btn.style.cssText = 'display:block;margin:12px auto 0;';
+  btn.textContent = '⬇️ 下载战报卡 PNG';
+  btn.addEventListener('click', () => {
+    canvas.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `战报_${g.date}_${g.opponent}.png`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }, 'image/png');
+  });
+  area.appendChild(btn);
 }
 
 /* ---------- 空状态 ---------- */
