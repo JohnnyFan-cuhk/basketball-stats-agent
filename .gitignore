@@ -6,3 +6,7 @@ desktop.ini
 # Editor
 .vscode/
 .idea/
+
+# 数据抓取的原始缓存（转换产物 examples/*.json 才入仓）
+examples/raw/
+

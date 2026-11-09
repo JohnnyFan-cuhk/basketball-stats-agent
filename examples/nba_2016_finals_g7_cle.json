@@ -1,0 +1,122 @@
+{
+  "id": "x400878160",
+  "date": "2016-06-19",
+  "opponent": "Golden State Warriors",
+  "us": [
+    23,
+    19,
+    33,
+    18
+  ],
+  "them": [
+    22,
+    27,
+    27,
+    13
+  ],
+  "stats": [
+    {
+      "name": "LeBron James",
+      "pts": 27,
+      "reb": 11,
+      "ast": 11,
+      "tov": 5,
+      "fg": [
+        9,
+        24
+      ],
+      "number": 23
+    },
+    {
+      "name": "Kevin Love",
+      "pts": 9,
+      "reb": 14,
+      "ast": 3,
+      "tov": 1,
+      "fg": [
+        3,
+        9
+      ],
+      "number": 0
+    },
+    {
+      "name": "Tristan Thompson",
+      "pts": 9,
+      "reb": 3,
+      "ast": 0,
+      "tov": 0,
+      "fg": [
+        3,
+        3
+      ],
+      "number": 13
+    },
+    {
+      "name": "JR Smith",
+      "pts": 12,
+      "reb": 4,
+      "ast": 2,
+      "tov": 2,
+      "fg": [
+        5,
+        13
+      ],
+      "number": 5
+    },
+    {
+      "name": "Kyrie Irving",
+      "pts": 26,
+      "reb": 6,
+      "ast": 1,
+      "tov": 2,
+      "fg": [
+        10,
+        23
+      ],
+      "number": 2
+    },
+    {
+      "name": "Richard Jefferson",
+      "pts": 2,
+      "reb": 9,
+      "ast": 0,
+      "tov": 0,
+      "fg": [
+        1,
+        4
+      ],
+      "number": 24
+    },
+    {
+      "name": "Mo Williams",
+      "pts": 2,
+      "reb": 0,
+      "ast": 0,
+      "tov": 1,
+      "fg": [
+        1,
+        3
+      ],
+      "number": 52
+    },
+    {
+      "name": "Iman Shumpert",
+      "pts": 6,
+      "reb": 1,
+      "ast": 0,
+      "tov": 0,
+      "fg": [
+        1,
+        3
+      ],
+      "number": 4
+    }
+  ],
+  "_meta": {
+    "source": "ESPN public API (site.api.espn.com)",
+    "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=400878160",
+    "fetchedAt": "2026-11-09T04:03:58+00:00",
+    "verified": "球员/四节/总分三级对账通过",
+    "storyline": "The Block + Kyrie关键三分 + LeBron总决赛G7三双｜终局 93:89"
+  }
+}

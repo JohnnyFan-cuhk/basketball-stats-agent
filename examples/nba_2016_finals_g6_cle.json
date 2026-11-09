@@ -1,0 +1,170 @@
+{
+  "id": "x400878159",
+  "date": "2016-06-16",
+  "opponent": "Golden State Warriors",
+  "us": [
+    31,
+    28,
+    21,
+    35
+  ],
+  "them": [
+    11,
+    32,
+    28,
+    30
+  ],
+  "stats": [
+    {
+      "name": "LeBron James",
+      "pts": 41,
+      "reb": 8,
+      "ast": 11,
+      "tov": 1,
+      "fg": [
+        16,
+        27
+      ],
+      "number": 23
+    },
+    {
+      "name": "Kevin Love",
+      "pts": 7,
+      "reb": 3,
+      "ast": 2,
+      "tov": 1,
+      "fg": [
+        1,
+        3
+      ],
+      "number": 0
+    },
+    {
+      "name": "Tristan Thompson",
+      "pts": 15,
+      "reb": 16,
+      "ast": 3,
+      "tov": 3,
+      "fg": [
+        6,
+        6
+      ],
+      "number": 13
+    },
+    {
+      "name": "JR Smith",
+      "pts": 14,
+      "reb": 4,
+      "ast": 3,
+      "tov": 0,
+      "fg": [
+        5,
+        11
+      ],
+      "number": 5
+    },
+    {
+      "name": "Kyrie Irving",
+      "pts": 23,
+      "reb": 4,
+      "ast": 3,
+      "tov": 3,
+      "fg": [
+        7,
+        18
+      ],
+      "number": 2
+    },
+    {
+      "name": "Richard Jefferson",
+      "pts": 3,
+      "reb": 6,
+      "ast": 1,
+      "tov": 1,
+      "fg": [
+        1,
+        3
+      ],
+      "number": 24
+    },
+    {
+      "name": "Timofey Mozgov",
+      "pts": 0,
+      "reb": 1,
+      "ast": 0,
+      "tov": 0,
+      "fg": [
+        0,
+        1
+      ],
+      "number": 20
+    },
+    {
+      "name": "Mo Williams",
+      "pts": 4,
+      "reb": 1,
+      "ast": 0,
+      "tov": 0,
+      "fg": [
+        2,
+        2
+      ],
+      "number": 52
+    },
+    {
+      "name": "Dahntay Jones",
+      "pts": 5,
+      "reb": 1,
+      "ast": 0,
+      "tov": 0,
+      "fg": [
+        1,
+        1
+      ],
+      "number": 30
+    },
+    {
+      "name": "James Jones",
+      "pts": 0,
+      "reb": 0,
+      "ast": 0,
+      "tov": 0,
+      "fg": [
+        0,
+        1
+      ],
+      "number": 1
+    },
+    {
+      "name": "Iman Shumpert",
+      "pts": 0,
+      "reb": 1,
+      "ast": 0,
+      "tov": 1,
+      "fg": [
+        0,
+        2
+      ],
+      "number": 4
+    },
+    {
+      "name": "Matthew Dellavedova",
+      "pts": 3,
+      "reb": 0,
+      "ast": 1,
+      "tov": 0,
+      "fg": [
+        1,
+        2
+      ],
+      "number": 8
+    }
+  ],
+  "_meta": {
+    "source": "ESPN public API (site.api.espn.com)",
+    "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=400878159",
+    "fetchedAt": "2026-11-09T04:03:57+00:00",
+    "verified": "球员/四节/总分三级对账通过",
+    "storyline": "LeBron 41分连得18分 & Curry犯满离场（ESPN recap 400878159）｜终局 115:101"
+  }
+}
