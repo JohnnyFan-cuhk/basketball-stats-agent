@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>poster · kobe81 v3</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { width:720px; height:960px; overflow:hidden; color:#e5e7eb; position:relative;
+         font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+         background:linear-gradient(160deg, #1a0f2e 0%, #120b1e 40%, #0b1220 100%); }
+  /* 氛围光：紫金 */
+  .glow-purple { position:absolute; top:-220px; left:-180px; width:640px; height:640px; border-radius:50%;
+                 background:radial-gradient(circle, rgba(124,58,237,.30), transparent 62%); }
+  .glow-gold   { position:absolute; top:60px; right:-220px; width:600px; height:600px; border-radius:50%;
+                 background:radial-gradient(circle, rgba(234,179,8,.22), transparent 62%); }
+  .stage       { position:absolute; bottom:-120px; left:50%; transform:translateX(-50%); width:820px; height:420px; border-radius:50%;
+                 background:radial-gradient(circle, rgba(250,204,21,.30), rgba(249,115,22,.12) 45%, transparent 68%); }
+  /* 泼墨颗粒 */
+  .splats, .splats::after, .splats::before { content:''; position:absolute; border-radius:50%; }
+  .splats { top:150px; left:36px; width:14px; height:14px; background:rgba(234,179,8,.8);
+            box-shadow: 90px 30px 0 -3px rgba(234,179,8,.5), 220px -20px 0 -6px rgba(250,204,21,.45),
+                        -30px 120px 0 -5px rgba(234,179,8,.4), 320px 90px 0 -8px rgba(250,204,21,.35),
+                        520px 40px 0 -4px rgba(234,179,8,.5), 600px -60px 0 -7px rgba(124,58,237,.5),
+                        40px 420px 0 -6px rgba(124,58,237,.45), 640px 300px 0 -6px rgba(234,179,8,.4); }
+  .frame { position:absolute; inset:24px; border:1px solid rgba(234,179,8,.4); pointer-events:none; }
+  .brand { position:absolute; top:44px; left:56px; font-size:17px; letter-spacing:2px; color:#f59e0b; font-weight:700; }
+  .date  { position:absolute; top:44px; right:56px; font-size:15px; color:#c4b5fd; letter-spacing:1px; }
+  .who   { position:absolute; top:104px; left:56px; font-size:26px; letter-spacing:9px; color:#f3f4f6; font-weight:600; }
+  .big   { position:absolute; top:130px; right:34px; font-size:300px; line-height:.92; font-weight:900;
+           transform:skewX(-5deg); letter-spacing:-10px;
+           background:linear-gradient(175deg, #fef08a 5%, #facc15 38%, #eab308 62%, #b45309 95%);
+           -webkit-background-clip:text; background-clip:text; color:transparent;
+           filter:drop-shadow(0 0 34px rgba(234,179,8,.45)); }
+  .pts   { position:absolute; top:466px; right:52px; font-size:44px; letter-spacing:10px; font-style:italic; font-weight:900;
+           transform:skewX(-8deg); color:#facc15; text-shadow:0 2px 0 rgba(180,83,9,.9), 0 0 26px rgba(250,204,21,.35); }
+  .mamba { position:absolute; top:532px; right:56px; font-size:15px; letter-spacing:5px; color:#c4b5fd; }
+  .match { position:absolute; top:578px; left:56px; }
+  .score { display:flex; gap:14px; align-items:baseline; margin-bottom:8px; }
+  .score .t { font-size:18px; color:#e5e7eb; }
+  .score .n { font-size:46px; font-weight:900; color:#facc15; }
+  .score .n.dim { color:#8b8b9e; }
+  .score .c { color:#6b7280; font-size:30px; }
+  .q { font-size:13px; color:#9ca3af; letter-spacing:1px; }
+  .facts { position:absolute; top:672px; left:56px; right:56px; }
+  .fact { margin-bottom:10px; font-size:16.5px; line-height:1.45; text-shadow:0 1px 6px rgba(11,18,32,.8); }
+  .fact b { color:#facc15; }
+  .foot { position:absolute; bottom:34px; left:56px; right:56px; display:flex; gap:14px; align-items:center;
+          background:rgba(11,18,32,.55); border:1px solid rgba(234,179,8,.30); border-radius:10px; padding:10px 14px; }
+  .qrbox { width:96px; height:96px; background:#fff; padding:6px; border-radius:8px; flex:none; }
+  .cta { font-size:14.5px; line-height:1.5; }
+  .cta b { color:#facc15; }
+  .cta .url { color:#9ca3af; font-size:12.5px; letter-spacing:.5px; }
+</style>
+</head>
+<body>
+  <div class="glow-purple"></div><div class="glow-gold"></div><div class="stage"></div>
+  <div class="splats"></div><div class="frame"></div>
+  <div class="brand">🏀 篮球队数据助手 · AI 战报</div>
+  <div class="date">2006.01.22</div>
+  <div class="who">KOBE BRYANT</div>
+  <div class="big">81</div>
+  <div class="pts">POINTS</div>
+  <div class="mamba">曼巴精神 · LEGEND NEVER FADES</div>
+  <div class="match">
+    <div class="score">
+      <span class="t">湖人</span><span class="n">122</span><span class="c">:</span><span class="n dim">104</span><span class="t">猛龙</span>
+    </div>
+    <div class="q">四节 29-20-42-31 ｜ 对方 36-27-22-19</div>
+  </div>
+  <div class="facts">
+    <div class="fact">📊 81 分 = 全队 <b>122 分的 66%</b>，46 次出手占全队 <b>52%</b></div>
+    <div class="fact">🧊 除 Kobe 外，全队 <b>42 投仅 14 中（33%）</b></div>
+    <div class="fact">🔄 上半场落后 <b>14 分</b>，第三节 <b>42:22</b> 单节翻盘</div>
+  </div>
+  <div class="foot">
+    <div class="qrbox"><canvas id="qr"></canvas></div>
+    <div class="cta">
+      <b>你的球队也值得一份 AI 复盘</b><br>
+      赛后 5 分钟录入 → AI 报告 + 战报卡<br>
+      <span class="url">johnnyfan-cuhk.github.io/basketball-stats-agent</span>
+    </div>
+  </div>
+  <script src="../js/qrcode.js"></script>
+  <script>
+    const qr = qrcode(0, 'M');
+    qr.addData('https://johnnyfan-cuhk.github.io/basketball-stats-agent/');
+    qr.make();
+    const c = document.getElementById('qr');
+    const n = qr.getModuleCount();
+    const s = Math.floor(82 / n);
+    c.width = c.height = s * n;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.fillStyle = '#0b1220';
+    for (let r = 0; r < n; r++) for (let col = 0; col < n; col++)
+      if (qr.isDark(r, col)) ctx.fillRect(col * s, r * s, s, s);
+  </script>
+</body>
+</html>
