@@ -209,6 +209,230 @@ function acwrCard() {
     </div>`;
 }
 
+/* ---------- 深度分析引擎（纯函数：可单测、可溯源、可喂 AI） ---------- */
+
+function teamFG(g) {
+  let m = 0, a = 0;
+  for (const s of g.stats) if (Array.isArray(s.fg)) { m += s.fg[0]; a += s.fg[1]; }
+  return { m, a, pct: a ? Math.round(m / a * 100) : null };
+}
+function teamTOV(g) { return g.stats.reduce((a, s) => a + s.tov, 0); }
+function teamREB(g) { return g.stats.reduce((a, s) => a + s.reb, 0); }
+function gameDiff(g, q) { return g.us[q] - g.them[q]; }
+function contribOf(s) { return s.pts + s.reb + s.ast - s.tov; }
+
+function deepAnalysis() {
+  const games = gamesSorted();
+  const n = games.length;
+  if (n === 0) return null;
+  const res = g => gameResult(g);
+  const fpts = g => teamScore(g, 'us'), fopp = g => teamScore(g, 'them');
+  const mean = arr => arr.reduce((s, x) => s + x, 0) / arr.length;
+
+  /* A1 胜负分野：同一指标在胜场/负场的均值差 */
+  const metrics = g => ({ pts: fpts(g), opp: fopp(g), tov: teamTOV(g), reb: teamREB(g), fgPct: teamFG(g).pct });
+  const W = games.filter(g => res(g) === 'win').map(metrics);
+  const L = games.filter(g => res(g) === 'loss').map(metrics);
+  const avgKeys = arr => arr.length ? {
+    pts: +mean(arr.map(m => m.pts)).toFixed(1), opp: +mean(arr.map(m => m.opp)).toFixed(1),
+    tov: +mean(arr.map(m => m.tov)).toFixed(1), reb: +mean(arr.map(m => m.reb)).toFixed(1),
+    fgPct: arr.some(m => m.fgPct === null) ? null : Math.round(mean(arr.map(m => m.fgPct))),
+  } : null;
+  const winSplit = (W.length && L.length) ? { win: avgKeys(W), loss: avgKeys(L) } : null;
+
+  /* A2 分节净胜：找结构性漏点 */
+  const qAvg = [0, 1, 2, 3].map(q => +(mean(games.map(g => gameDiff(g, q)))).toFixed(1));
+  const leakQ = qAvg.indexOf(Math.min(...qAvg));
+
+  /* A3 上下半场：翻盘/被翻盘 */
+  const halves = games.map(g => {
+    const h1 = gameDiff(g, 0) + gameDiff(g, 1), h2 = gameDiff(g, 2) + gameDiff(g, 3);
+    return { date: g.date, opponent: g.opponent, result: res(g), h1, h2, swing: h2 - h1 };
+  });
+  const comeback = halves.filter(h => h.h1 < 0 && h.result === 'win').length;
+  const blown = halves.filter(h => h.h1 > 0 && h.result === 'loss').length;
+
+  /* A4 胶着球：三节后分差 ≤5，看末节成色 */
+  const closeGames = games.map(g => {
+    const diff3q = gameDiff(g, 0) + gameDiff(g, 1) + gameDiff(g, 2);
+    return { date: g.date, opponent: g.opponent, result: res(g), diff3q, q4: gameDiff(g, 3), margin: fpts(g) - fopp(g) };
+  }).filter(x => Math.abs(x.diff3q) <= 5);
+
+  /* A5 对手谱 */
+  const opponents = {};
+  for (const g of games) {
+    const o = opponents[g.opponent] ||= { n: 0, w: 0, pts: 0, opp: 0 };
+    o.n += 1; if (res(g) === 'win') o.w += 1;
+    o.pts += fpts(g); o.opp += fopp(g);
+  }
+  Object.values(opponents).forEach(o => {
+    o.pts = +((o.pts) / o.n).toFixed(1); o.opp = +((o.opp) / o.n).toFixed(1);
+    o.diff = +(o.pts - o.opp).toFixed(1);
+  });
+
+  /* B 球员深度 */
+  const nameOf = id => { const p = db.players.find(x => x.id === id); return p ? `#${p.number} ${p.name}` : '未知'; };
+  const posOf = id => { const p = db.players.find(x => x.id === id); return p ? p.position : '?'; };
+  const players = {};
+  let tovAll = 0;
+  for (const g of games) {
+    const tTov = teamTOV(g); tovAll += tTov;
+    for (const s of g.stats) {
+      const p = players[s.playerId] ||= { name: nameOf(s.playerId), pos: posOf(s.playerId), gp: 0, pts: [], reb: [], ast: [], tov: [], contrib: [], fgM: 0, fgA: 0, dd: 0, double10: 0 };
+      p.gp += 1;
+      p.pts.push(s.pts); p.reb.push(s.reb); p.ast.push(s.ast); p.tov.push(s.tov);
+      p.contrib.push(contribOf(s));
+      if (Array.isArray(s.fg)) { p.fgM += s.fg[0]; p.fgA += s.fg[1]; }
+      if (s.pts >= 10 && s.reb >= 10) p.dd += 1;
+      if (s.pts >= 10) p.double10 += 1;
+    }
+  }
+  const meanA = a => +(a.reduce((s, x) => s + x, 0) / a.length).toFixed(1);
+  const maxPtsAvg = Math.max(...Object.values(players).map(p => meanA(p.pts)));
+  const playerRows = Object.values(players).map(p => {
+    const std = a => { const m = meanA(a); return +Math.sqrt(meanA(a.map(x => (x - m) * (x - m)))).toFixed(1); };
+    const tovTotal = p.tov.reduce((s, x) => s + x, 0);
+    const astTotal = p.ast.reduce((s, x) => s + x, 0);
+    const ptsTotal = p.pts.reduce((s, x) => s + x, 0);
+    const row = {
+      name: p.name, pos: p.pos, gp: p.gp,
+      pts: meanA(p.pts), reb: meanA(p.reb), ast: meanA(p.ast), tov: meanA(p.tov),
+      contrib: meanA(p.contrib), max: Math.max(...p.pts), min: Math.min(...p.pts), std: std(p.pts),
+      astTov: tovTotal ? +(astTotal / tovTotal).toFixed(2) : null,
+      tovShare: tovAll ? Math.round(tovTotal / tovAll * 100) : null,
+      pps: p.fgA ? +(ptsTotal / p.fgA).toFixed(2) : null,
+      fgPct: p.fgA ? Math.round(p.fgM / p.fgA * 100) : null,
+      dd: p.dd, double10: p.double10, tags: [],
+    };
+    if (row.pts === maxPtsAvg && row.pts >= 10) row.tags.push('得分引擎');
+    if (row.reb >= 7) row.tags.push('篮板支柱');
+    if (row.ast >= 4) row.tags.push(row.tov >= 3.5 ? '高风险组织' : '组织核心');
+    if (row.std <= 3 && row.pts >= 8) row.tags.push('稳定输出');
+    if (row.max - row.pts >= 8) row.tags.push('爆发型');
+    if (row.pts < 8 && row.reb + row.ast >= 6) row.tags.push('蓝领拼图');
+    if (row.pps !== null && p.fgA / p.gp >= 5 && row.pps < 0.9) row.tags.push('效率警示');
+    if (!row.tags.length) row.tags.push('轮换深度');
+    return row;
+  }).sort((a, b) => b.contrib - a.contrib);
+
+  /* B10 双核依赖：前两得分手占全队得分比 */
+  const dualCore = games.map(g => {
+    const sorted = [...g.stats].sort((a, b) => b.pts - a.pts);
+    const top2 = (sorted[0]?.pts || 0) + (sorted[1]?.pts || 0);
+    const total = fpts(g);
+    return { date: g.date, result: res(g), top2, share: total ? Math.round(top2 / total * 100) : 0 };
+  });
+  const dualCoreAvg = Math.round(mean(dualCore.map(x => x.share)));
+
+  /* C1 赛前 7 天负荷 vs 比赛表现 */
+  const sessions = loadSessions();
+  const preGameLoad = games.map(g => {
+    const cutoff = addDays(g.date, -7);
+    const load = sessions.filter(s => s.date >= cutoff && s.date < g.date).reduce((a, s) => a + s.au, 0);
+    return { date: g.date, opponent: g.opponent, result: res(g), margin: fpts(g) - fopp(g), tov: teamTOV(g), load: Math.round(load) };
+  });
+
+  return { n, winSplit, qAvg, leakQ, halves, comeback, blown, closeGames, opponents, playerRows, dualCore, dualCoreAvg, preGameLoad };
+}
+
+function renderDeepAnalysis(main) {
+  const d = deepAnalysis();
+  if (!d || d.n === 0) { main.innerHTML = emptyState(); return; }
+  const diffCell = v => { const s = v > 0 ? '+' : ''; return `<td style="color:${v > 0 ? '#34d399' : v < 0 ? '#f87171' : 'var(--text-dim)'}">${s}${v}</td>`; };
+
+  let a1 = '<div class="hint">样本里胜场与负场并存才能对比</div>';
+  if (d.winSplit) {
+    const { win, loss } = d.winSplit;
+    const rows = [['得分', win.pts, loss.pts], ['失分', win.opp, loss.opp], ['失误', win.tov, loss.tov], ['篮板', win.reb, loss.reb]];
+    if (win.fgPct !== null) rows.push(['命中率%', win.fgPct, loss.fgPct]);
+    a1 = `<div class="card table-wrap"><table>
+      <thead><tr><th style="text-align:left">指标</th><th>胜场均值</th><th>负场均值</th><th>差值</th></tr></thead>
+      <tbody>${rows.map(([k, w, l]) => {
+        const dd = k === '失分' ? +(l - w).toFixed(1) : +(w - l).toFixed(1);
+        const good = k === '失分' ? dd < 0 : dd > 0;
+        const color = dd === 0 ? 'var(--text-dim)' : good ? '#34d399' : '#f87171';
+        return `<tr><td class="name">${k}</td><td>${w}</td><td>${l}</td><td style="color:${color}">${dd > 0 ? '+' : ''}${dd}</td></tr>`;
+      }).join('')}</tbody></table></div>
+      <div class="hint">差值为「负场 − 胜场」：失误/失分为正 = 负场更多，得分/篮板/命中率为正 = 胜场更强。</div>`;
+  }
+
+  const qCell = i => {
+    const v = d.qAvg[i];
+    const isLeak = i === d.leakQ && v < 0;
+    return `<td style="color:${v > 0 ? '#34d399' : v < 0 ? '#f87171' : 'var(--text-dim)'};font-weight:${isLeak ? 700 : 400}">${v > 0 ? '+' : ''}${v}${isLeak ? ' ⚠' : ''}</td>`;
+  };
+
+  let a4 = `<div class="hint">三节后分差 ≤5 的比赛才计入「胶着球」</div>`;
+  if (d.closeGames.length) {
+    a4 = `<div class="card table-wrap"><table>
+      <thead><tr><th style="text-align:left">日期</th><th style="text-align:left">对手</th><th>三节后分差</th><th>末节净胜</th><th>结果</th></tr></thead>
+      <tbody>${d.closeGames.map(x => `<tr><td class="name">${esc(x.date)}</td><td style="text-align:left">${esc(x.opponent)}</td>${diffCell(x.diff3q)}${diffCell(x.q4)}<td>${x.result === 'win' ? '✅ 胜' : '❌ 负'}</td></tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+
+  let a5 = `<div class="hint">还没有对手记录</div>`;
+  a5 = `<div class="card table-wrap"><table>
+    <thead><tr><th style="text-align:left">对手</th><th>场次</th><th>战绩</th><th>场均得分</th><th>场均失分</th><th>净胜</th></tr></thead>
+    <tbody>${Object.entries(d.opponents).map(([name, o]) => `<tr><td class="name">${esc(name)}</td><td>${o.n}</td><td>${o.w}胜${o.n - o.w}负</td><td>${o.pts}</td><td>${o.opp}</td>${diffCell(o.diff)}</tr>`).join('')}</tbody>
+  </table></div>`;
+
+  let b1 = `<div class="hint">还没有球员统计</div>`;
+  if (d.playerRows.length) {
+    b1 = `<div class="card table-wrap"><table>
+      <thead><tr><th style="text-align:left">球员</th><th>位置</th><th>出场</th><th>贡献值</th><th>得分</th><th>篮板</th><th>助攻</th><th>失误</th><th style="text-align:left">角色画像</th></tr></thead>
+      <tbody>${d.playerRows.map((p, i) => `<tr><td class="name">${i + 1}. ${esc(p.name)}</td><td>${p.pos}</td><td>${p.gp}</td><td><b>${p.contrib}</b></td><td>${p.pts}</td><td>${p.reb}</td><td>${p.ast}</td><td>${p.tov}</td><td style="text-align:left">${p.tags.map(t => `<span class="badge ${t === '得分引擎' || t === '组织核心' ? 'accent' : 'gray'}">${t}</span>`).join(' ')}</td></tr>`).join('')}</tbody>
+    </table></div>
+    <div class="hint">贡献值 = 得分 + 篮板 + 助攻 − 失误（简化综合指标，非正式正负值）。</div>`;
+  }
+
+  const b2 = `<div class="card table-wrap"><table>
+    <thead><tr><th style="text-align:left">球员</th><th>场均分</th><th>最高</th><th>最低</th><th>波动σ</th><th>每出手得分</th><th>命中率%</th><th>助/失</th><th>失误占全队</th><th>上双</th><th>两双</th></tr></thead>
+    <tbody>${d.playerRows.map(p => `<tr><td class="name">${esc(p.name)}</td><td>${p.pts}</td><td>${p.max}</td><td>${p.min}</td><td>${p.std}</td><td>${p.pps ?? '-'}</td><td>${p.fgPct === null ? '-' : p.fgPct + '%'}</td><td>${p.astTov ?? '-'}</td><td>${p.tovShare}%</td><td>${p.double10}场</td><td>${p.dd}场</td></tr>`).join('')}</tbody>
+  </table></div>
+  <div class="hint">波动σ = 得分标准差，越小越稳定；每出手得分（PPS）≥1.0 为高效线。样本仅 ${d.n} 场，波动与角色为方向性参考。</div>`;
+
+  let c1 = `<div class="hint">还没有比赛记录</div>`;
+  c1 = `<div class="card table-wrap"><table>
+    <thead><tr><th style="text-align:left">日期</th><th style="text-align:left">对手</th><th>赛前 7 天负荷</th><th>结果</th><th>净胜</th><th>全队失误</th></tr></thead>
+    <tbody>${d.preGameLoad.map(x => `<tr><td class="name">${esc(x.date)}</td><td style="text-align:left">${esc(x.opponent)}</td><td>${x.load} AU</td><td>${x.result === 'win' ? '✅ 胜' : '❌ 负'}</td>${diffCell(x.margin)}<td>${x.tov}</td></tr>`).join('')}</tbody>
+  </table></div>
+  <div class="hint">样本 ${d.n} 场，仅作方向性观察；负荷 = 比赛日之前 7 天内的训练+比赛 AU 合计。</div>`;
+
+  const dualRows = d.dualCore.map(x => `<span style="color:${x.share >= 50 ? '#f87171' : '#d1d5db'}">${x.date.slice(5)}：${x.share}%（${x.result === 'win' ? '胜' : '负'}）</span>`).join(' ｜ ');
+  const dualJudge = d.dualCoreAvg >= 55 ? '⚠ 双核依赖偏高——得分点过于集中' : '✓ 得分点相对分散';
+
+  main.innerHTML = `
+    <div class="hint" style="margin-bottom:14px">深度分析 · 全部指标由「${d.n} 场比赛 + ${db.trainings.length} 次训练」的录入数据实时计算，可溯源、无人工修饰。样本 ${d.n < 5 ? '较小（<5 场），结论看方向不看点' : '具备参考价值'}。</div>
+
+    <div class="section-title">A · 胜负解密</div>
+    <div class="hint" style="margin:4px 0 6px">A1 胜负分野：赢和输的时候，我们到底差在哪</div>
+    ${a1}
+    <div class="hint" style="margin:12px 0 6px">A2 分节净胜（场均，正值好）—— <b style="color:#f87171">Q${d.leakQ + 1} 为结构性漏点（场均 ${d.qAvg[d.leakQ] > 0 ? '+' : ''}${d.qAvg[d.leakQ]}）</b></div>
+    <div class="card"><table style="width:100%;text-align:center"><thead><tr><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr></thead><tbody><tr>${[0,1,2,3].map(qCell).join('')}</tr></tbody></table></div>
+    <div class="hint" style="margin:12px 0 6px">A3 上下半场：翻盘 ${d.comeback} 次 · 被翻盘 ${d.blown} 次</div>
+    <div class="card table-wrap"><table>
+      <thead><tr><th style="text-align:left">日期</th><th style="text-align:left">对手</th><th>上半场净胜</th><th>下半场净胜</th><th>摆幅</th><th>结果</th></tr></thead>
+      <tbody>${d.halves.map(h => `<tr><td class="name">${esc(h.date)}</td><td style="text-align:left">${esc(h.opponent)}</td>${diffCell(h.h1)}${diffCell(h.h2)}${diffCell(h.swing)}<td>${h.result === 'win' ? '✅ 胜' : '❌ 负'}</td></tr>`).join('')}</tbody>
+    </table></div>
+    <div class="hint" style="margin:12px 0 6px">A4 胶着球（三节后 ≤5 分）—— 末节成色</div>
+    ${a4}
+    <div class="hint" style="margin:12px 0 6px">A5 对手谱</div>
+    ${a5}
+
+    <div class="section-title" style="margin-top:18px">B · 球员深度</div>
+    <div class="hint" style="margin:4px 0 6px">B1 综合贡献榜（贡献值 = 得分+篮板+助攻−失误）</div>
+    ${b1}
+    <div class="hint" style="margin:12px 0 6px">B2 稳定性 / 效率 / 助失比 / 上双两双</div>
+    ${b2}
+    <div class="hint" style="margin:12px 0 6px">B3 双核依赖（前两得分手占全队得分%）—— 场均 <b>${d.dualCoreAvg}%</b>，${dualJudge}</div>
+    <div class="card"><div class="hint" style="line-height:2">${dualRows}</div></div>
+
+    <div class="section-title" style="margin-top:18px">C · 训练联动</div>
+    <div class="hint" style="margin:4px 0 6px">C1 赛前负荷 vs 比赛表现（负荷-表现关系，样本小时只看方向）</div>
+    ${c1}
+  `;
+}
+
 /* ---------- 渲染入口 ---------- */
 
 function render() {
@@ -216,6 +440,7 @@ function render() {
   charts = [];
   const main = $('#main');
   if (currentTab === 'dashboard') renderDashboard(main);
+  if (currentTab === 'deep')      renderDeepAnalysis(main);
   if (currentTab === 'games')     renderGames(main);
   if (currentTab === 'training')  renderTraining(main);
   if (currentTab === 'entry')     renderEntry(main);
