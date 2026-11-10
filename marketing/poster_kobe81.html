@@ -2,98 +2,151 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>poster · kobe81 v3</title>
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { width:720px; height:960px; overflow:hidden; color:#e5e7eb; position:relative;
-         font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
-         background:linear-gradient(160deg, #1a0f2e 0%, #120b1e 40%, #0b1220 100%); }
-  /* 氛围光：紫金 */
-  .glow-purple { position:absolute; top:-220px; left:-180px; width:640px; height:640px; border-radius:50%;
-                 background:radial-gradient(circle, rgba(124,58,237,.30), transparent 62%); }
-  .glow-gold   { position:absolute; top:60px; right:-220px; width:600px; height:600px; border-radius:50%;
-                 background:radial-gradient(circle, rgba(234,179,8,.22), transparent 62%); }
-  .stage       { position:absolute; bottom:-120px; left:50%; transform:translateX(-50%); width:820px; height:420px; border-radius:50%;
-                 background:radial-gradient(circle, rgba(250,204,21,.30), rgba(249,115,22,.12) 45%, transparent 68%); }
-  /* 泼墨颗粒 */
-  .splats, .splats::after, .splats::before { content:''; position:absolute; border-radius:50%; }
-  .splats { top:150px; left:36px; width:14px; height:14px; background:rgba(234,179,8,.8);
-            box-shadow: 90px 30px 0 -3px rgba(234,179,8,.5), 220px -20px 0 -6px rgba(250,204,21,.45),
-                        -30px 120px 0 -5px rgba(234,179,8,.4), 320px 90px 0 -8px rgba(250,204,21,.35),
-                        520px 40px 0 -4px rgba(234,179,8,.5), 600px -60px 0 -7px rgba(124,58,237,.5),
-                        40px 420px 0 -6px rgba(124,58,237,.45), 640px 300px 0 -6px rgba(234,179,8,.4); }
-  .frame { position:absolute; inset:24px; border:1px solid rgba(234,179,8,.4); pointer-events:none; }
-  .brand { position:absolute; top:44px; left:56px; font-size:17px; letter-spacing:2px; color:#f59e0b; font-weight:700; }
-  .date  { position:absolute; top:44px; right:56px; font-size:15px; color:#c4b5fd; letter-spacing:1px; }
-  .who   { position:absolute; top:104px; left:56px; font-size:26px; letter-spacing:9px; color:#f3f4f6; font-weight:600; }
-  .big   { position:absolute; top:130px; right:34px; font-size:300px; line-height:.92; font-weight:900;
-           transform:skewX(-5deg); letter-spacing:-10px;
-           background:linear-gradient(175deg, #fef08a 5%, #facc15 38%, #eab308 62%, #b45309 95%);
-           -webkit-background-clip:text; background-clip:text; color:transparent;
-           filter:drop-shadow(0 0 34px rgba(234,179,8,.45)); }
-  .pts   { position:absolute; top:466px; right:52px; font-size:44px; letter-spacing:10px; font-style:italic; font-weight:900;
-           transform:skewX(-8deg); color:#facc15; text-shadow:0 2px 0 rgba(180,83,9,.9), 0 0 26px rgba(250,204,21,.35); }
-  .mamba { position:absolute; top:532px; right:56px; font-size:15px; letter-spacing:5px; color:#c4b5fd; }
-  .match { position:absolute; top:578px; left:56px; }
-  .score { display:flex; gap:14px; align-items:baseline; margin-bottom:8px; }
-  .score .t { font-size:18px; color:#e5e7eb; }
-  .score .n { font-size:46px; font-weight:900; color:#facc15; }
-  .score .n.dim { color:#8b8b9e; }
-  .score .c { color:#6b7280; font-size:30px; }
-  .q { font-size:13px; color:#9ca3af; letter-spacing:1px; }
-  .facts { position:absolute; top:672px; left:56px; right:56px; }
-  .fact { margin-bottom:10px; font-size:16.5px; line-height:1.45; text-shadow:0 1px 6px rgba(11,18,32,.8); }
-  .fact b { color:#facc15; }
-  .foot { position:absolute; bottom:34px; left:56px; right:56px; display:flex; gap:14px; align-items:center;
-          background:rgba(11,18,32,.55); border:1px solid rgba(234,179,8,.30); border-radius:10px; padding:10px 14px; }
-  .qrbox { width:96px; height:96px; background:#fff; padding:6px; border-radius:8px; flex:none; }
-  .cta { font-size:14.5px; line-height:1.5; }
-  .cta b { color:#facc15; }
-  .cta .url { color:#9ca3af; font-size:12.5px; letter-spacing:.5px; }
-</style>
+<title>poster · kobe81 v2 (ESPN data style)</title>
+<style>html,body{margin:0;padding:0;background:#0e0a1a}svg{display:block}</style>
 </head>
 <body>
-  <div class="glow-purple"></div><div class="glow-gold"></div><div class="stage"></div>
-  <div class="splats"></div><div class="frame"></div>
-  <div class="brand">🏀 篮球队数据助手 · AI 战报</div>
-  <div class="date">2006.01.22</div>
-  <div class="who">KOBE BRYANT</div>
-  <div class="big">81</div>
-  <div class="pts">POINTS</div>
-  <div class="mamba">曼巴精神 · LEGEND NEVER FADES</div>
-  <div class="match">
-    <div class="score">
-      <span class="t">湖人</span><span class="n">122</span><span class="c">:</span><span class="n dim">104</span><span class="t">猛龙</span>
-    </div>
-    <div class="q">四节 29-20-42-31 ｜ 对方 36-27-22-19</div>
-  </div>
-  <div class="facts">
-    <div class="fact">📊 81 分 = 全队 <b>122 分的 66%</b>，46 次出手占全队 <b>52%</b></div>
-    <div class="fact">🧊 除 Kobe 外，全队 <b>42 投仅 14 中（33%）</b></div>
-    <div class="fact">🔄 上半场落后 <b>14 分</b>，第三节 <b>42:22</b> 单节翻盘</div>
-  </div>
-  <div class="foot">
-    <div class="qrbox"><canvas id="qr"></canvas></div>
-    <div class="cta">
-      <b>你的球队也值得一份 AI 复盘</b><br>
-      赛后 5 分钟录入 → AI 报告 + 战报卡<br>
-      <span class="url">johnnyfan-cuhk.github.io/basketball-stats-agent</span>
-    </div>
-  </div>
-  <script src="../js/qrcode.js"></script>
-  <script>
-    const qr = qrcode(0, 'M');
-    qr.addData('https://johnnyfan-cuhk.github.io/basketball-stats-agent/');
-    qr.make();
-    const c = document.getElementById('qr');
-    const n = qr.getModuleCount();
-    const s = Math.floor(82 / n);
-    c.width = c.height = s * n;
-    const ctx = c.getContext('2d');
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height);
-    ctx.fillStyle = '#0b1220';
-    for (let r = 0; r < n; r++) for (let col = 0; col < n; col++)
-      if (qr.isDark(r, col)) ctx.fillRect(col * s, r * s, s, s);
-  </script>
+<svg width="720" height="960" viewBox="0 0 720 960" xmlns="http://www.w3.org/2000/svg" font-family="'Microsoft YaHei','Segoe UI',sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1a1030"/><stop offset=".5" stop-color="#0f0a20"/><stop offset="1" stop-color="#0b1220"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fef3c7"/><stop offset=".4" stop-color="#fbbf24"/><stop offset=".72" stop-color="#d97706"/><stop offset="1" stop-color="#92400e"/>
+    </linearGradient>
+    <linearGradient id="goldDim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="rgba(250,204,21,.42)"/><stop offset="1" stop-color="rgba(180,83,9,.22)"/>
+    </linearGradient>
+    <radialGradient id="glowP" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="rgba(124,58,237,.38)"/><stop offset="1" stop-color="rgba(124,58,237,0)"/>
+    </radialGradient>
+    <radialGradient id="glowG" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="rgba(250,204,21,.30)"/><stop offset="1" stop-color="rgba(250,204,21,0)"/>
+    </radialGradient>
+    <filter id="brush" x="-15%" y="-15%" width="130%" height="130%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.11 0.08" numOctaves="3" seed="11" result="t"/>
+      <feDisplacementMap in="SourceGraphic" in2="t" scale="13" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="brushSoft" x="-15%" y="-15%" width="130%" height="130%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.14 0.1" numOctaves="2" seed="4" result="t"/>
+      <feDisplacementMap in="SourceGraphic" in2="t" scale="9" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+  </defs>
+
+  <!-- 底 -->
+  <rect width="720" height="960" fill="url(#bg)"/>
+  <circle cx="120" cy="60" r="330" fill="url(#glowP)"/>
+  <circle cx="640" cy="420" r="360" fill="url(#glowG)"/>
+  <circle cx="360" cy="1010" r="420" fill="url(#glowG)" opacity=".5"/>
+  <!-- 球场弧线（三点线意象） -->
+  <circle cx="820" cy="360" r="330" fill="none" stroke="rgba(250,204,21,.10)" stroke-width="52"/>
+  <circle cx="820" cy="360" r="220" fill="none" stroke="rgba(124,58,237,.12)" stroke-width="2"/>
+
+  <!-- 页眉 -->
+  <text x="48" y="52" font-size="16" font-weight="700" fill="#f59e0b" letter-spacing="2">🏀 篮球队数据助手 · AI 战报</text>
+  <text x="672" y="52" font-size="14" fill="#c4b5fd" letter-spacing="1" text-anchor="end">2006.01.22</text>
+  <line x1="48" y1="66" x2="672" y2="66" stroke="rgba(250,204,21,.25)" stroke-width="1"/>
+
+  <!-- 球员名 -->
+  <text x="48" y="126" font-size="27" fill="#f3f4f6" letter-spacing="11" font-weight="600">KOBE BRYANT</text>
+  <text x="48" y="158" font-size="14" fill="#9ca3af" letter-spacing="3">单场得分纪录之夜 · VS TORONTO RAPTORS</text>
+
+  <!-- 巨型 81（笔刷 + 出血裁切 + 多层） -->
+  <g filter="url(#brush)">
+    <text x="384" y="452" font-size="318" font-weight="900" letter-spacing="-8" fill="rgba(11,18,32,.85)" transform="translate(7 8)">81</text>
+    <text x="384" y="452" font-size="318" font-weight="900" letter-spacing="-8" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2" transform="translate(-4 -4)">81</text>
+    <text x="384" y="452" font-size="318" font-weight="900" letter-spacing="-8" fill="url(#gold)">81</text>
+  </g>
+  <g filter="url(#brushSoft)">
+    <text x="400" y="540" font-size="54" font-style="italic" font-weight="900" letter-spacing="10" fill="#facc15" transform="skewX(-8)" transform-origin="400 540">POINTS</text>
+  </g>
+  <text x="672" y="576" font-size="14" fill="#c4b5fd" letter-spacing="4" text-anchor="end">曼巴精神 · LEGEND NEVER FADES</text>
+
+  <!-- 比分条（转播 lower-third） -->
+  <g>
+    <rect x="48" y="586" width="624" height="58" rx="8" fill="rgba(11,18,32,.72)" stroke="rgba(250,204,21,.35)"/>
+    <rect x="48" y="586" width="8" height="58" rx="4" fill="#f59e0b"/>
+    <text x="86" y="624" font-size="18" fill="#e5e7eb">湖人</text>
+    <text x="146" y="632" font-size="40" font-weight="900" fill="#facc15">122</text>
+    <text x="228" y="626" font-size="28" fill="#6b7280">:</text>
+    <text x="262" y="632" font-size="40" font-weight="900" fill="#8b8b9e">104</text>
+    <text x="354" y="624" font-size="18" fill="#e5e7eb">猛龙</text>
+    <text x="430" y="620" font-size="14" fill="#9ca3af">FINAL · 主场</text>
+    <text x="672" y="624" font-size="16" fill="#facc15" text-anchor="end" font-weight="700">Kobe 81 分 · 28/46</text>
+  </g>
+  <text x="48" y="678" font-size="15" fill="#9ca3af">📊 81 分 = 全队 <tspan fill="#facc15" font-weight="700">122 分的 66%</tspan>　🧊 除 Kobe 外全队命中率仅 <tspan fill="#f87171" font-weight="700">33%</tspan></text>
+
+  <!-- 分节趋势图（ESPN 风数据模块） -->
+  <g>
+    <text x="48" y="716" font-size="14" font-weight="700" fill="#c4b5fd" letter-spacing="2">比赛走势 · 每节得分</text>
+    <line x1="48" y1="726" x2="672" y2="726" stroke="rgba(148,163,184,.2)"/>
+    <g>
+      <rect x="96"  y="772" width="56" height="84"  rx="4" fill="url(#goldDim)"/>
+      <rect x="196" y="798" width="56" height="58"  rx="4" fill="url(#goldDim)"/>
+      <rect x="296" y="735" width="56" height="121" rx="4" fill="url(#gold)"/>
+      <rect x="396" y="766" width="56" height="90"  rx="4" fill="url(#goldDim)"/>
+    </g>
+    <text x="124" y="764" font-size="16" font-weight="700" fill="#d1d5db" text-anchor="middle">29</text>
+    <text x="224" y="790" font-size="16" font-weight="700" fill="#d1d5db" text-anchor="middle">20</text>
+    <text x="324" y="727" font-size="19" font-weight="900" fill="#facc15" text-anchor="middle">42</text>
+    <text x="424" y="758" font-size="16" font-weight="700" fill="#d1d5db" text-anchor="middle">31</text>
+    <polyline points="124,752 224,778 324,792 424,801" fill="none" stroke="#8b8b9e" stroke-width="2.5" stroke-dasharray="6 4"/>
+    <circle cx="124" cy="752" r="4" fill="#8b8b9e"/><circle cx="224" cy="778" r="4" fill="#8b8b9e"/>
+    <circle cx="324" cy="792" r="4" fill="#8b8b9e"/><circle cx="424" cy="801" r="4" fill="#8b8b9e"/>
+    <text x="124" y="874" font-size="13" fill="#9ca3af" text-anchor="middle">Q1</text>
+    <text x="224" y="874" font-size="13" fill="#9ca3af" text-anchor="middle">Q2</text>
+    <text x="324" y="874" font-size="13" font-weight="700" fill="#facc15" text-anchor="middle">Q3</text>
+    <text x="424" y="874" font-size="13" fill="#9ca3af" text-anchor="middle">Q4</text>
+    <text x="124" y="894" font-size="11" fill="#6b7280" text-anchor="middle">29:36</text>
+    <text x="224" y="894" font-size="11" fill="#6b7280" text-anchor="middle">20:27</text>
+    <text x="324" y="894" font-size="11" fill="#facc15" text-anchor="middle">42:22</text>
+    <text x="424" y="894" font-size="11" fill="#6b7280" text-anchor="middle">31:19</text>
+    <rect x="462" y="722" width="166" height="30" rx="15" fill="rgba(250,204,21,.12)" stroke="rgba(250,204,21,.45)"/>
+    <text x="545" y="742" font-size="13.5" font-weight="700" fill="#facc15" text-anchor="middle">Q3 42:22 · 单节翻盘 20 分</text>
+    <line x1="324" y1="733" x2="460" y2="737" stroke="rgba(250,204,21,.6)"/>
+    <text x="486" y="778" font-size="12.5" fill="#8b8b9e">虚线 = 猛龙</text>
+    <text x="486" y="798" font-size="12.5" fill="#9ca3af">金色 = 湖人</text>
+  </g>
+
+  <!-- 底栏：CTA + QR -->
+  <g>
+    <rect x="48" y="912" width="624" height="4" fill="rgba(250,204,21,.35)"/>
+    <text x="48" y="944" font-size="16" font-weight="700" fill="#facc15">你的球队也值得一份 AI 复盘 <tspan fill="#9ca3af" font-size="13" font-weight="400">赛后 5 分钟录入 → AI 报告 + 战报卡</tspan></text>
+    <text x="410" y="944" font-size="12" fill="#9ca3af">johnnyfan-cuhk.github.io</text>
+  </g>
+
+  <!-- 颗粒 -->
+  <rect width="720" height="960" filter="url(#grain)" opacity="0.06"/>
+</svg>
+
+<script src="../js/qrcode.js"></script>
+<script>
+  // 底栏右侧二维码（动态插入，避开文字）
+  const qr = qrcode(0, 'M');
+  qr.addData('https://johnnyfan-cuhk.github.io/basketball-stats-agent/');
+  qr.make();
+  const n = qr.getModuleCount();
+  const s = 2;
+  const size = n * s;
+  const svg = document.querySelector('svg');
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  bg.setAttribute('x', 588); bg.setAttribute('y', 906);
+  bg.setAttribute('width', size + 12); bg.setAttribute('height', size + 12);
+  bg.setAttribute('rx', 6); bg.setAttribute('fill', '#ffffff');
+  g.appendChild(bg);
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+    if (!qr.isDark(r, c)) continue;
+    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    dot.setAttribute('x', 588 + 6 + c * s); dot.setAttribute('y', 906 + 6 + r * s);
+    dot.setAttribute('width', s); dot.setAttribute('height', s); dot.setAttribute('fill', '#0e0a1a');
+    g.appendChild(dot);
+  }
+  svg.appendChild(g);
+</script>
 </body>
 </html>
