@@ -33,9 +33,10 @@
   }
 
 训练 Training:
-  { id, date, type, intensity, minutes, note }
+  { id, date, type, intensity, minutes, note, knee }
     // type: 队练 | 力量 | 核心
     // intensity: 主观强度 1-5（RPE）
+    // knee: 记录人膝盖反馈 好|酸|痛（选填，负荷-伤病交叉分析用）
 ------------------------------------------ */
 
 const STORAGE_KEY = 'bsa_data_v1';
@@ -106,10 +107,12 @@ const SAMPLE_GAMES = [
 
 const SAMPLE_TRAININGS = [
   { id: 't1', date: '2026-09-24', type: '队练', intensity: 4, minutes: 120, note: '全场战术走位 + 5v5 三组轮换' },
-  { id: 't2', date: '2026-09-30', type: '力量', intensity: 3, minutes: 60,  note: '下肢：深蹲 5x5 + 罗马尼亚硬拉' },
-  { id: 't3', date: '2026-10-08', type: '队练', intensity: 4, minutes: 120, note: '破紧逼专项 + 全场 2v2' },
-  { id: 't4', date: '2026-10-12', type: '核心', intensity: 2, minutes: 30,  note: '平板 / 侧桥 / 死虫（低强度恢复课）' },
+  { id: 't2', date: '2026-09-30', type: '力量', intensity: 3, minutes: 60,  knee: '好', note: '下肢：深蹲 5x5 + 罗马尼亚硬拉' },
+  { id: 't3', date: '2026-10-08', type: '队练', intensity: 4, minutes: 120, knee: '好', note: '破紧逼专项 + 全场 2v2' },
+  { id: 't4', date: '2026-10-12', type: '核心', intensity: 2, minutes: 30,  knee: '酸', note: '平板 / 侧桥 / 死虫（低强度恢复课）' },
 ];
+// 膝盖反馈故事线：10-08 队练 48AU（练完「好」）→ 10-11 比赛（估算 45AU）为大负荷窗口
+// → 10-12 膝盖「酸」，当天安排低强度恢复课 —— 正好触发「大负荷后 48h 内酸痛」规则提示。
 
 /* ---------- 存储层 ----------
  * 数据存在浏览器 localStorage（M1 原型够用，且离线可用）。

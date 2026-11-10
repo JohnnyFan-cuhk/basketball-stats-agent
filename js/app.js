@@ -66,11 +66,11 @@ function sessionLoad(t) { return t.intensity * t.minutes / 10; }
 function loadSessions() {
   const trainings = db.trainings.map(t => ({
     date: t.date, label: `${t.type}（${t.minutes}min）`,
-    au: sessionLoad(t), est: false,
+    au: sessionLoad(t), est: false, knee: t.knee || '',
   }));
   const games = db.games.map(g => ({
     date: g.date, label: `vs ${g.opponent}（比赛·估算）`,
-    au: 5 * 90 / 10, est: true,
+    au: 5 * 90 / 10, est: true, knee: '',
   }));
   return [...trainings, ...games].sort((a, b) => a.date.localeCompare(b.date));
 }
@@ -80,6 +80,62 @@ function loadLast7Days() {
   const cutoffStr = cutoff.toISOString().slice(0, 10);
   return loadSessions().filter(s => s.date >= cutoffStr)
     .reduce((sum, s) => sum + s.au, 0);
+}
+
+/* ---------- 负荷 × 膝盖（规则提示，非医疗建议） ----------
+ * 大负荷单元 = 单次 ≥40AU（如 48AU 队练、估算 45AU 比赛）。
+ * 规则：大负荷后 2 个自然日内出现膝盖「酸/痛」反馈 → 计 1 次触发。 */
+
+const BIG_LOAD_AU = 40;
+
+function addDays(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function kneeMark(k) {
+  return k === '好' ? '✅好' : k === '酸' ? '🟡酸' : k === '痛' ? '🔴痛' : '';
+}
+
+function kneeCrossReport(sessions) {
+  const dated = sessions.filter(s => s.knee);
+  const last = dated.length ? dated[dated.length - 1] : null;
+  const big = sessions.filter(s => s.au >= BIG_LOAD_AU);
+  let flares = 0;
+  for (const b of big) {
+    const hit = dated.some(s => s.knee !== '好' && s.date > b.date && s.date <= addDays(b.date, 2));
+    if (hit) flares += 1;
+  }
+  return { bigCount: big.length, flares, last };
+}
+
+function kneeCrossCard(sessions) {
+  const recent = sessions.slice(-8).reverse();   // 最近 8 条，最新在上
+  const rowMax = Math.max(...recent.map(s => s.au), 1);
+  const r = kneeCrossReport(sessions);
+  let hint;
+  if (r.flares >= 2) {
+    hint = `🦵 <b>提示（规则·估算）：</b>大负荷单元（≥${BIG_LOAD_AU}AU）后 48h 内膝盖酸痛已出现 ${r.flares} 次 —— 建议下周总负荷下调 10-20%，减少连续跳跃类内容，并持续记录恢复后反馈。`;
+  } else if (r.flares === 1) {
+    hint = `🦵 <b>提示（规则·估算）：</b>出现 1 次大负荷后酸痛 —— 观察即可；大负荷日（≥${BIG_LOAD_AU}AU）后 48h 内控制额外跳跃量。`;
+  } else if (r.last) {
+    hint = `🦵 近期大负荷后膝盖反馈良好，继续保持「大负荷日 → 次日反馈」的记录习惯。`;
+  } else {
+    hint = `🦵 还没有膝盖反馈记录 —— 记训练时顺手选一个（好/酸/痛），就能生成负荷-膝盖关联提示。`;
+  }
+  return `
+    <div class="section-title">负荷 × 膝盖反馈</div>
+    <div class="card">
+      ${recent.map(s => `
+        <div class="load-bar-row">
+          <span class="who">${esc(s.date)} · ${esc(s.label)}</span>
+          <div class="bar"><div style="width:${Math.round(s.au / rowMax * 100)}%"></div></div>
+          <span class="au">${s.au} AU${s.est ? ' *' : ''}${s.knee ? ' · ' + kneeMark(s.knee) : ''}</span>
+        </div>`).join('') || '<div class="hint">还没有训练/比赛记录</div>'}
+      <div class="hint" style="margin-top:8px">${hint}</div>
+      <div class="hint">* 膝盖反馈为记录人个人视角（v1）。规则提示非医疗建议，膝盖持续疼痛请就医。</div>
+    </div>`;
 }
 
 /* ---------- 渲染入口 ---------- */
@@ -301,18 +357,21 @@ function renderTraining(main) {
       <div class="hint" style="margin-top:8px">* 估算值。负荷监控的意义：大负荷日（如 48AU 队练）后 48 小时内，控制额外跳跃量 —— 对应膝盖状态管理。</div>
     </div>
 
+    ${kneeCrossCard(loadSessions())}
+
     <div class="section-title">训练明细</div>
     <div class="card table-wrap">
       <table>
-        <thead><tr><th style="text-align:left">日期</th><th>类型</th><th>强度(RPE)</th><th>时长</th><th>负荷AU</th><th style="text-align:left">备注</th></tr></thead>
+        <thead><tr><th style="text-align:left">日期</th><th>类型</th><th>强度(RPE)</th><th>时长</th><th>负荷AU</th><th>膝盖</th><th style="text-align:left">备注</th></tr></thead>
         <tbody>
           ${[...db.trainings].sort((a, b) => b.date.localeCompare(a.date)).map(t => `
             <tr>
               <td class="name">${esc(t.date)}</td>
               <td><span class="badge ${t.type === '队练' ? 'accent' : 'gray'}">${esc(t.type)}</span></td>
               <td>${t.intensity}</td><td>${t.minutes}min</td><td>${sessionLoad(t)}</td>
+              <td>${t.knee ? kneeMark(t.knee) : '-'}</td>
               <td style="text-align:left;white-space:normal">${esc(t.note || '-')}</td>
-            </tr>`).join('') || '<tr><td colspan="6" class="hint">暂无</td></tr>'}
+            </tr>`).join('') || '<tr><td colspan="7" class="hint">暂无</td></tr>'}
         </tbody>
       </table>
     </div>
@@ -369,6 +428,8 @@ function renderEntry(main) {
         <div class="field"><label>主观强度 RPE (1-5)</label>
           <select id="tInt">${[1, 2, 3, 4, 5].map(i => `<option ${i === 4 ? 'selected' : ''}>${i}</option>`).join('')}</select></div>
         <div class="field"><label>时长（分钟）</label><input type="number" min="0" id="tMin" value="120"></div>
+        <div class="field"><label>膝盖反馈（记录人·选填）</label>
+          <select id="tKnee"><option value="">不填</option><option>好</option><option>酸</option><option>痛</option></select></div>
       </div>
       <div class="field"><label>备注</label><input id="tNote" placeholder="练了什么"></div>
       <div class="btn-row">
@@ -451,6 +512,7 @@ function saveTraining() {
     intensity: +$('#tInt').value,
     minutes: +$('#tMin').value || 0,
     note: $('#tNote').value.trim(),
+    knee: $('#tKnee').value || undefined,
   });
   saveDB(db);
   $('#trainMsg').style.display = 'inline';
@@ -627,7 +689,7 @@ function renderSampleReport() {
         <li data-icon="✅"><b>破紧逼专项起效：</b>全队失误 20 次（10-04）→ 14 次（本场），与 10-08 破紧逼专项训练的时间线吻合。这类「训练→数据」因果链要保持记录。</li>
         <li data-icon="🎯"><b>命中率三连升：</b>45.1% → 36.5% → 52.3%（按场次序 10-04 为低谷），外线手感回暖与失误减少互为因果：失误少了，轻松反击多了。</li>
         <li data-icon="⚠️"><b>控卫失误仍偏高：</b>#7 小北场均 4.0 次失误全队最高，但助攻 6.7 次同样是全队最高 —— 高风险高回报，助失比 1.7 尚可，优先减少横传。</li>
-        <li data-icon="🦵"><b>负荷与膝盖：</b>10-08 队练 48AU + 10-11 比赛（估算 45AU）为大负荷窗口，10-12 低强度核心课恢复，安排合理。提醒：大负荷后 48h 内控制额外跳跃量。</li>
+        <li data-icon="🦵"><b>负荷与膝盖：</b>10-08 队练 48AU + 10-11 比赛（估算 45AU）为大负荷窗口，10-12 膝盖反馈「酸」，当天即安排低强度核心课恢复，处理合理。提醒：大负荷后 48h 内控制额外跳跃量。</li>
       </ul>
     </div>
 
@@ -637,7 +699,7 @@ function renderSampleReport() {
         <li data-icon="1️⃣"><b>保持每周 1 次破紧逼专项</b>（失误 20→14 的直接原因），加入 2v2 全场压迫情景。</li>
         <li data-icon="2️⃣"><b>第三节开局包：</b>固定首攻战术 + 中场休息后 2 分钟渐进激活，专治第三节得分低谷。</li>
         <li data-icon="3️⃣"><b>第二篮板点：</b>本场 12 个前场板里 5 个来自对方身高劣势；对手升级后需要 #32 大伟之外再养一个篮板点。</li>
-        <li data-icon="4️⃣"><b>记录膝盖反馈：</b>每次大负荷日后在训练日志标注膝盖状态（好/酸/痛），为负荷上限提供个人化依据。</li>
+        <li data-icon="4️⃣"><b>记录膝盖反馈：</b>每次大负荷日后在训练录入里顺手选膝盖状态（好/酸/痛），「负荷×膝盖反馈」卡片会自动给出关联提示（v1 为记录人视角）。</li>
       </ul>
     </div>
   `;
@@ -653,7 +715,7 @@ const AI_SYSTEM_PROMPT = `你是一名业余篮球队的数据分析师兼教练
 3. 用中文，直接、专业、口语化；不奉承、不客套。
 4. 严格只输出一个 JSON 对象：不要 markdown 代码块，不要任何解释文字。格式：
 {"title":"一句话标题","mvp":{"name":"球员名","line":"X分Y篮板Z助攻"},"insights":[{"icon":"单个emoji","title":"不超过10字","text":"不超过60字"}],"suggestions":[{"title":"不超过10字","text":"不超过60字"}],"note":"不超过40字总结"}
-5. insights 给 3-5 条，优先覆盖：得分走势、失误、命中率、篮板、训练负荷（若近期训练数据支持）。
+5. insights 给 3-5 条，优先覆盖：得分走势、失误、命中率、篮板、训练负荷（若近期训练数据支持，其中含膝盖反馈 knee 字段（好/酸/痛）时必须结合解读）。
 6. suggestions 给 3-4 条：可执行的训练或战术调整，需与本场数据有因果关系。
 7. MVP 按得分/篮板/助攻综合判断；mvp.line 里的数字必须与 playerStats 逐字一致。`;
 
@@ -689,7 +751,7 @@ function buildAIContext(gameId) {
     teamTurnovers: x.stats.reduce((a, s) => a + s.tov, 0),
   }));
   const recentTrainings = [...db.trainings].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5)
-    .map(t => ({ date: t.date, type: t.type, rpe: t.intensity, minutes: t.minutes, note: t.note || '' }));
+    .map(t => ({ date: t.date, type: t.type, rpe: t.intensity, minutes: t.minutes, knee: t.knee || '', note: t.note || '' }));
 
   return {
     system: AI_SYSTEM_PROMPT,
