@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>poster · g6g7 v1 (ESPN compare)</title>
+<style>html,body{margin:0;padding:0;background:#0e0a1a}svg{display:block}</style>
+</head>
+<body>
+<svg width="720" height="960" viewBox="0 0 720 960" xmlns="http://www.w3.org/2000/svg" font-family="'Microsoft YaHei','Segoe UI',sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1a1030"/><stop offset=".5" stop-color="#0f0a20"/><stop offset="1" stop-color="#0b1220"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fef3c7"/><stop offset=".4" stop-color="#fbbf24"/><stop offset=".72" stop-color="#d97706"/><stop offset="1" stop-color="#92400e"/>
+    </linearGradient>
+    <linearGradient id="goldDim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="rgba(250,204,21,.42)"/><stop offset="1" stop-color="rgba(180,83,9,.22)"/>
+    </linearGradient>
+    <radialGradient id="glowP" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="rgba(124,58,237,.38)"/><stop offset="1" stop-color="rgba(124,58,237,0)"/>
+    </radialGradient>
+    <radialGradient id="glowG" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="rgba(250,204,21,.30)"/><stop offset="1" stop-color="rgba(250,204,21,0)"/>
+    </radialGradient>
+    <filter id="brush" x="-15%" y="-15%" width="130%" height="130%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.11 0.08" numOctaves="3" seed="9" result="t"/>
+      <feDisplacementMap in="SourceGraphic" in2="t" scale="13" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="brushSoft" x="-15%" y="-15%" width="130%" height="130%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.14 0.1" numOctaves="2" seed="4" result="t"/>
+      <feDisplacementMap in="SourceGraphic" in2="t" scale="9" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+  </defs>
+
+  <rect width="720" height="960" fill="url(#bg)"/>
+  <circle cx="110" cy="70" r="330" fill="url(#glowP)"/>
+  <circle cx="650" cy="430" r="360" fill="url(#glowG)"/>
+  <circle cx="360" cy="1010" r="420" fill="url(#glowG)" opacity=".5"/>
+  <circle cx="-40" cy="330" r="300" fill="none" stroke="rgba(250,204,21,.10)" stroke-width="48"/>
+  <circle cx="-40" cy="330" r="190" fill="none" stroke="rgba(124,58,237,.12)" stroke-width="2"/>
+
+  <text x="48" y="52" font-size="16" font-weight="700" fill="#f59e0b" letter-spacing="2">🏀 篮球队数据助手 · AI 战报</text>
+  <text x="672" y="52" font-size="14" fill="#c4b5fd" letter-spacing="1" text-anchor="end">2016 总决赛 · 06.16 → 06.19</text>
+  <line x1="48" y1="66" x2="672" y2="66" stroke="rgba(250,204,21,.25)" stroke-width="1"/>
+
+  <text x="48" y="126" font-size="27" fill="#f3f4f6" letter-spacing="9" font-weight="600">CLEVELAND CAVALIERS</text>
+  <text x="48" y="158" font-size="14" fill="#9ca3af" letter-spacing="3">1:3 绝境翻盘 · 把 73 胜勇士钉在抢七</text>
+
+  <g filter="url(#brush)">
+    <text x="330" y="452" font-size="290" font-weight="900" letter-spacing="-6" fill="rgba(11,18,32,.85)" transform="translate(7 8)">68</text>
+    <text x="330" y="452" font-size="290" font-weight="900" letter-spacing="-6" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2" transform="translate(-4 -4)">68</text>
+    <text x="330" y="452" font-size="290" font-weight="900" letter-spacing="-6" fill="url(#gold)">68</text>
+  </g>
+  <g filter="url(#brushSoft)">
+    <text x="270" y="540" font-size="40" font-style="italic" font-weight="900" letter-spacing="6" fill="#facc15" transform="skewX(-8)" transform-origin="270 540">LEBRON 两场合计</text>
+  </g>
+  <text x="672" y="576" font-size="14" fill="#c4b5fd" letter-spacing="4" text-anchor="end">41 分 + 27 分 · G7 三双</text>
+
+  <!-- 两条比分条 -->
+  <g>
+    <rect x="48" y="586" width="624" height="50" rx="8" fill="rgba(11,18,32,.72)" stroke="rgba(250,204,21,.35)"/>
+    <rect x="48" y="586" width="8" height="50" rx="4" fill="#a78bfa"/>
+    <text x="76" y="618" font-size="15" fill="#c4b5fd" font-weight="700">G6 · 06.16</text>
+    <text x="160" y="619" font-size="20" fill="#e5e7eb">骑士 <tspan font-size="30" font-weight="900" fill="#facc15">115</tspan> : <tspan font-size="30" font-weight="900" fill="#8b8b9e">101</tspan> 勇士</text>
+    <text x="656" y="618" font-size="14" fill="#facc15" text-anchor="end" font-weight="700">LeBron 41 分</text>
+  </g>
+  <g>
+    <rect x="48" y="644" width="624" height="50" rx="8" fill="rgba(11,18,32,.72)" stroke="rgba(250,204,21,.45)"/>
+    <rect x="48" y="644" width="8" height="50" rx="4" fill="#f59e0b"/>
+    <text x="76" y="676" font-size="15" fill="#facc15" font-weight="700">G7 · 06.19 抢七</text>
+    <text x="200" y="677" font-size="20" fill="#e5e7eb">骑士 <tspan font-size="30" font-weight="900" fill="#facc15">93</tspan> : <tspan font-size="30" font-weight="900" fill="#8b8b9e">89</tspan> 勇士</text>
+    <text x="656" y="676" font-size="14" fill="#facc15" text-anchor="end" font-weight="700">LeBron 三双 27+11+11</text>
+  </g>
+
+  <!-- 左：8 节走势（G6|G7） -->
+  <g>
+    <text x="48" y="748" font-size="14" font-weight="700" fill="#c4b5fd" letter-spacing="2">八节连看 · 骑士每节得分</text>
+    <rect x="248" y="732" width="118" height="26" rx="13" fill="rgba(250,204,21,.12)" stroke="rgba(250,204,21,.45)"/>
+    <text x="307" y="750" font-size="12" font-weight="700" fill="#facc15" text-anchor="middle">G6 首节 31:11 打崩</text>
+    <rect x="374" y="732" width="114" height="26" rx="13" fill="rgba(250,204,21,.12)" stroke="rgba(250,204,21,.45)"/>
+    <text x="431" y="750" font-size="12" font-weight="700" fill="#facc15" text-anchor="middle">G7 Q3 33:27 扭转</text>
+    <line x1="48" y1="758" x2="470" y2="758" stroke="rgba(148,163,184,.2)"/>
+    <g>
+      <rect x="56"  y="767" width="30" height="89"  rx="3" fill="url(#gold)"/>
+      <rect x="98"  y="776" width="30" height="80"  rx="3" fill="url(#goldDim)"/>
+      <rect x="140" y="796" width="30" height="60"  rx="3" fill="url(#goldDim)"/>
+      <rect x="182" y="756" width="30" height="100" rx="3" fill="url(#goldDim)"/>
+      <rect x="238" y="790" width="30" height="66"  rx="3" fill="url(#goldDim)"/>
+      <rect x="280" y="802" width="30" height="54"  rx="3" fill="url(#goldDim)"/>
+      <rect x="322" y="762" width="30" height="94"  rx="3" fill="url(#gold)"/>
+      <rect x="364" y="805" width="30" height="51"  rx="3" fill="url(#goldDim)"/>
+    </g>
+    <text x="71"  y="761" font-size="13" font-weight="700" fill="#facc15" text-anchor="middle">31</text>
+    <text x="113" y="770" font-size="13" fill="#d1d5db" text-anchor="middle">28</text>
+    <text x="155" y="790" font-size="13" fill="#d1d5db" text-anchor="middle">21</text>
+    <text x="197" y="750" font-size="13" fill="#d1d5db" text-anchor="middle">35</text>
+    <text x="253" y="784" font-size="13" fill="#d1d5db" text-anchor="middle">23</text>
+    <text x="295" y="796" font-size="13" fill="#d1d5db" text-anchor="middle">19</text>
+    <text x="337" y="756" font-size="13" font-weight="700" fill="#facc15" text-anchor="middle">33</text>
+    <text x="379" y="799" font-size="13" fill="#d1d5db" text-anchor="middle">18</text>
+    <polyline points="71,825 113,765 155,776 197,770 253,793 295,779 337,779 379,819" fill="none" stroke="#8b8b9e" stroke-width="2" stroke-dasharray="5 4"/>
+    <line x1="222" y1="766" x2="222" y2="860" stroke="rgba(196,181,253,.4)" stroke-dasharray="3 4"/>
+    <text x="71" y="874" font-size="11" fill="#9ca3af" text-anchor="middle">Q1</text>
+    <text x="113" y="874" font-size="11" fill="#9ca3af" text-anchor="middle">Q2</text>
+    <text x="155" y="874" font-size="11" fill="#9ca3af" text-anchor="middle">Q3</text>
+    <text x="197" y="874" font-size="11" fill="#9ca3af" text-anchor="middle">Q4</text>
+    <text x="253" y="874" font-size="11" fill="#9ca3af" text-anchor="middle">Q1</text>
+    <text x="295" y="874" font-size="11" fill="#9ca3af" text-anchor="middle">Q2</text>
+    <text x="337" y="874" font-size="11" fill="#facc15" text-anchor="middle">Q3</text>
+    <text x="379" y="874" font-size="11" fill="#9ca3af" text-anchor="middle">Q4</text>
+    <text x="139" y="892" font-size="12" fill="#c4b5fd" text-anchor="middle">G6 · 06.16</text>
+    <text x="339" y="892" font-size="12" fill="#facc15" text-anchor="middle">G7 · 06.19 抢七</text>
+    <text x="71" y="761" font-size="13" fill="none"/>
+  </g>
+
+  <!-- 右：崩盘信号侧栏 -->
+  <g>
+    <rect x="496" y="730" width="176" height="160" rx="10" fill="rgba(11,18,32,.72)" stroke="rgba(250,204,21,.35)"/>
+    <text x="512" y="756" font-size="14" font-weight="700" fill="#c4b5fd" letter-spacing="2">AI 摘要 · 崩盘信号</text>
+    <line x1="512" y1="764" x2="656" y2="764" stroke="rgba(148,163,184,.2)"/>
+    <text x="512" y="786" font-size="13" fill="#d1d5db">Curry <tspan fill="#facc15" font-weight="700">30 → 17</tspan> 抢七哑火</text>
+    <text x="512" y="812" font-size="13" fill="#d1d5db">G7 失误 <tspan fill="#f87171" font-weight="700">11 &gt; 10</tspan> 仍赢</text>
+    <text x="512" y="838" font-size="13" fill="#d1d5db">抢七篮板 <tspan fill="#facc15" font-weight="700">48 个</tspan>拼下来</text>
+    <text x="512" y="864" font-size="13" fill="#d1d5db">1:3 落后 → <tspan fill="#facc15" font-weight="700">4:3 夺冠</tspan></text>
+  </g>
+
+  <g>
+    <rect x="48" y="912" width="624" height="4" fill="rgba(250,204,21,.35)"/>
+    <text x="48" y="944" font-size="16" font-weight="700" fill="#facc15">你的球队也值得一份 AI 复盘 <tspan fill="#9ca3af" font-size="13" font-weight="400">赛后 5 分钟录入 → AI 报告 + 战报卡</tspan></text>
+    <text x="560" y="908" font-size="12" fill="#9ca3af" text-anchor="end">johnnyfan-cuhk.github.io</text>
+  </g>
+
+  <rect width="720" height="960" filter="url(#grain)" opacity="0.06"/>
+</svg>
+
+<script src="../js/qrcode.js"></script>
+<script>
+  const qr = qrcode(0, 'M');
+  qr.addData('https://johnnyfan-cuhk.github.io/basketball-stats-agent/');
+  qr.make();
+  const n = qr.getModuleCount();
+  const s = 2;
+  const svg = document.querySelector('svg');
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  bg.setAttribute('x', 596); bg.setAttribute('y', 914);
+  bg.setAttribute('width', n * s + 10); bg.setAttribute('height', n * s + 10);
+  bg.setAttribute('rx', 5); bg.setAttribute('fill', '#ffffff');
+  g.appendChild(bg);
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+    if (!qr.isDark(r, c)) continue;
+    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    dot.setAttribute('x', 596 + 5 + c * s); dot.setAttribute('y', 914 + 5 + r * s);
+    dot.setAttribute('width', s); dot.setAttribute('height', s); dot.setAttribute('fill', '#0e0a1a');
+    g.appendChild(dot);
+  }
+  svg.appendChild(g);
+</script>
+</body>
+</html>
