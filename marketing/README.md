@@ -22,6 +22,8 @@
 | 文件 | 内容 | 用途 |
 |------|------|------|
 | `cards/poster_kobe81.png` | 科比 81 分之夜 · **原创紫金排版海报**（源文件 `poster_kobe81.html`，无照片/队标，纯代码绘制，数据已对账） | 笔记②封面 + 朋友圈海报图 |
+| `cards/poster_g67.png` | 骑士 G6→G7 八节对比 · 原创海报（源文件 `poster_g67.html`，ESPN 风模板） | 笔记③封面（周四黄金档） |
+| `cards/poster_kobe81_v2.png` | 科比 81 分之夜 · **ESPN 风数据海报 v2**（笔刷大数字+分节走势图） | 备用封面/后续内容 |
 | `cards/card_2016_finals_g6.png` | 骑士 115:101 勇士 · LeBron 41分 | 小红书/抖音封面+正文图 |
 | `cards/card_2016_finals_g7.png` | 骑士 93:89 勇士 · LeBron 三双 | 同上 |
 | `cards/card_2006_kobe81.png` | 湖人 122:104 猛龙 · Kobe 81分 | 同上 |
