@@ -138,6 +138,77 @@ function kneeCrossCard(sessions) {
     </div>`;
 }
 
+/* ---------- ACWR（急性:慢性负荷比，Gabbett 滚动平均模型） ----------
+ * 急性负荷 = 近 7 天日负荷合计；慢性负荷 = 近 28 天日负荷合计 ÷ 4（周均）。
+ * ACWR = 急性 / 慢性：<0.8 负荷不足；0.8-1.3 最优；1.3-1.5 偏高；>1.5 尖峰风险。 */
+
+function dailyLoadSeries(days) {
+  const out = [];
+  const today = new Date();
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    out.push({ date: d.toISOString().slice(0, 10), au: 0 });
+  }
+  const map = Object.fromEntries(out.map(o => [o.date, o]));
+  for (const s of loadSessions()) if (map[s.date]) map[s.date].au += s.au;
+  return out;
+}
+
+function rollingLoads(series, win, divide) {
+  return series.map((d, i) => {
+    if (i + 1 < win) return null;
+    let sum = 0;
+    for (let k = i - win + 1; k <= i; k++) sum += series[k].au;
+    return Math.round(sum / divide);
+  });
+}
+
+function acwrReport(series) {
+  const acute = series.slice(-7).reduce((a, d) => a + d.au, 0);
+  const sum28 = series.reduce((a, d) => a + d.au, 0);
+  const chronic = sum28 / 4;
+  if (sum28 === 0) return { acute: 0, chronic: 0, ratio: null, zone: '数据不足', color: '#9aa3b2' };
+  const ratio = acute / chronic;
+  let zone, color;
+  if (ratio > 1.5)       { zone = '高危尖峰'; color = '#f87171'; }
+  else if (ratio > 1.3)  { zone = '偏高';      color = '#fb923c'; }
+  else if (ratio >= 0.8) { zone = '最优区间'; color = '#34d399'; }
+  else                   { zone = '负荷不足'; color = '#9aa3b2'; }
+  return { acute: Math.round(acute), chronic: Math.round(chronic), ratio: Math.round(ratio * 100) / 100, zone, color };
+}
+
+function acwrCard() {
+  const series = dailyLoadSeries(28);
+  const r = acwrReport(series);
+  const ratioText = r.ratio === null ? '--' : r.ratio.toFixed(2);
+  let hint;
+  if (r.zone === '数据不足')       hint = '近 28 天还没有训练/比赛记录，暂无法计算 ACWR —— 坚持记录 1 周后自动生成。';
+  else if (r.zone === '高危尖峰') hint = `⚠ <b>本周减量</b>：急性负荷已达慢性的 ${ratioText} 倍（>1.5 尖峰区）。优先安排恢复课、砍掉连续大负荷日，膝盖反馈加倍留意。`;
+  else if (r.zone === '偏高')     hint = `⚠ ACWR ${ratioText}（1.3-1.5 偏高区）—— 控制下周增量，避免再排连续大负荷日。`;
+  else if (r.zone === '最优区间') hint = `✓ ACWR ${ratioText}（0.8-1.3 最优区）—— 当前负荷节奏健康，按计划推进即可。`;
+  else                            hint = `ACWR ${ratioText}（<0.8 负荷不足区）—— 若非恢复周，建议逐步把周负荷拉回最优区间。`;
+
+  const labels = series.map(d => d.date.slice(5));
+  const acute7 = rollingLoads(series, 7, 1);
+  const chronic = rollingLoads(series, 28, 4);
+
+  return `
+    <div class="section-title">ACWR · 负荷风险监控（急性 ÷ 慢性）</div>
+    <div class="card">
+      <div class="kpi-row" style="margin-bottom:4px">
+        <div class="kpi"><div class="label">当前 ACWR</div>
+          <div class="value" style="color:${r.color}">${ratioText}</div><div class="sub" style="color:${r.color}">${r.zone}</div></div>
+        <div class="kpi"><div class="label">急性负荷（近 7 天）</div>
+          <div class="value">${r.acute}<span style="font-size:14px;color:var(--text-dim)"> AU</span></div><div class="sub">小负荷块求进步</div></div>
+        <div class="kpi"><div class="label">慢性负荷（28 天周均）</div>
+          <div class="value">${r.chronic}<span style="font-size:14px;color:var(--text-dim)"> AU</span></div><div class="sub">身体已经适应的水平</div></div>
+      </div>
+      <div style="height:190px;margin:10px 0 6px"><canvas id="chAcwr"></canvas></div>
+      <div class="hint" style="margin-top:8px">${hint}</div>
+      <div class="hint">* 模型：急性=近 7 天 AU 合计，慢性=近 28 天 AU ÷ 4（Gabbett 滚动平均）。规则提示非医疗建议。</div>
+    </div>`;
+}
+
 /* ---------- 渲染入口 ---------- */
 
 function render() {
@@ -346,6 +417,8 @@ function renderTraining(main) {
         <div class="sub">${esc(sessions.length ? sessions.reduce((a, b) => a.au > b.au ? a : b).label : '-')}</div></div>
     </div>
 
+    ${acwrCard()}
+
     <div class="section-title">单元负荷（比赛按 强度5×90min 估算）</div>
     <div class="card">
       ${sessions.map(s => `
@@ -376,6 +449,20 @@ function renderTraining(main) {
       </table>
     </div>
   `;
+
+  const series28 = dailyLoadSeries(28);
+  charts.push(new Chart($('#chAcwr'), {
+    type: 'bar',
+    data: {
+      labels: series28.map(d => d.date.slice(5)),
+      datasets: [
+        { label: '日负荷 AU', data: series28.map(d => d.au), backgroundColor: 'rgba(249,115,22,0.7)', borderRadius: 3 },
+        { label: '急性（7 天合计）', data: rollingLoads(series28, 7, 1), type: 'line', borderColor: '#facc15', borderWidth: 2, tension: 0.3, spanGaps: true, pointRadius: 0 },
+        { label: '慢性（28 天周均）', data: rollingLoads(series28, 28, 4), type: 'line', borderColor: '#9aa3b2', borderDash: [5, 5], borderWidth: 2, tension: 0.3, spanGaps: true, pointRadius: 0 },
+      ],
+    },
+    options: chartOpts({ scales: { y: { beginAtZero: true, title: { display: true, text: 'AU' } } } }),
+  }));
 }
 
 /* ---------- Tab 4 · 赛后录入 ---------- */
