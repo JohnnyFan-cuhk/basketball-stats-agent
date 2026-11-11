@@ -981,16 +981,26 @@ function addPlayer() {
 
 /* ---------- Tab 5 · AI 报告（M2：真实大模型生成） ----------
  * 架构：自带密钥（BYO-key）——key 只存用户浏览器 localStorage，
- * 仓库零密钥、零服务器成本。Z.ai / DeepSeek 官方接口允许浏览器跨域
- * （已实测），智谱国内站不允许跨域，需走自定义中转地址。
+ * 仓库零密钥、零服务器成本。服务商可用性随各家 CORS 策略变化：
+ * 2026-11-09 实测 Z.ai / DeepSeek 放行跨域；2026-11-11 复测 Z.ai 的
+ * OPTIONS 预检不再返回 CORS 头（POST 本身正常），浏览器直连暂不可用，
+ * 默认服务商切换为 Gemini（实测可直连），DeepSeek 仍可用。
+ * 智谱国内站一直不允许跨域，需走自定义中转地址。
  * 报告质量约束写在系统提示词里：数字必须来自录入数据，缺失写「数据不足」。
  */
 
 const AI_PROVIDERS = {
+  gemini: {
+    name: 'Gemini（Google · 推荐，浏览器直连）',
+    url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+    model: 'gemini-3.8-flash',
+    note: '2026-11-11 实测直连可用。个别新模型可能过载（503 高需求），届时把模型改为 gemini-3.1-flash-lite。',
+  },
   zai: {
-    name: 'GLM · Z.ai（推荐，浏览器直连）',
+    name: 'GLM · Z.ai（跨域受限，暂不可直连）',
     url: 'https://api.z.ai/api/paas/v4/chat/completions',
-    model: 'glm-5.3-flash', note: '',
+    model: 'glm-5.3-flash',
+    note: '⚠️ 2026-11-11 复测：该接口的跨域预检不再放行浏览器直连（此前可用，非 key 问题）。等待恢复，或自建中转（如 Cloudflare Worker）后把中转地址填入「接口地址」。',
   },
   deepseek: {
     name: 'DeepSeek（浏览器直连）',
@@ -1018,7 +1028,7 @@ function loadAISettings() {
     const s = JSON.parse(localStorage.getItem('bsa_ai_settings'));
     if (s && typeof s === 'object') return s;
   } catch (e) { /* 损坏则重置 */ }
-  return { provider: 'zai', model: '', baseUrl: '', apiKey: '' };
+  return { provider: 'gemini', model: '', baseUrl: '', apiKey: '' };
 }
 
 function saveAISettings(s) {
@@ -1029,7 +1039,7 @@ function renderReport(main) {
   const games = gamesSorted().reverse();          // 最新在上
   if (games.length === 0) { main.innerHTML = emptyState(); return; }
   const s = loadAISettings();
-  const preset = AI_PROVIDERS[s.provider] || AI_PROVIDERS.zai;
+  const preset = AI_PROVIDERS[s.provider] || AI_PROVIDERS.gemini;
 
   main.innerHTML = `
     <div class="section-title">AI 赛后报告</div>
@@ -1230,7 +1240,7 @@ function buildAIContext(gameId) {
 }
 
 function callAI(settings, system, user) {
-  const preset = AI_PROVIDERS[settings.provider] || AI_PROVIDERS.zai;
+  const preset = AI_PROVIDERS[settings.provider] || AI_PROVIDERS.gemini;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 120000);
   return fetch(settings.baseUrl || preset.url, {
@@ -1288,7 +1298,7 @@ async function generateReport(gameId) {
     if (!rep || !Array.isArray(rep.insights)) throw new Error('返回内容解析失败，请重试一次或更换模型');
     aiReport = rep;
     aiMeta = {
-      model: s.model || (AI_PROVIDERS[s.provider] || AI_PROVIDERS.zai).model,
+      model: s.model || (AI_PROVIDERS[s.provider] || AI_PROVIDERS.gemini).model,
       at: new Date().toLocaleString('zh-CN'),
       gameLabel: ctx.gameLabel,
       gameId,
