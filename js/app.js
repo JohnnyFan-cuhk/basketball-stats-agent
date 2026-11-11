@@ -332,7 +332,73 @@ function deepAnalysis() {
     return { date: g.date, opponent: g.opponent, result: res(g), margin: fpts(g) - fopp(g), tov: teamTOV(g), load: Math.round(load) };
   });
 
-  return { n, winSplit, qAvg, leakQ, halves, comeback, blown, closeGames, opponents, playerRows, dualCore, dualCoreAvg, preGameLoad };
+  /* D1 球队趋势：最近窗口 vs 之前窗口（窗口随样本缩放，避免小样本被均摊淹没） */
+  const rN = n >= 6 ? 3 : n >= 4 ? 2 : 1;
+  const earlyG = games.slice(0, n - rN), recentG = games.slice(n - rN);
+  const periodOf = arr => arr.length ? {
+    pts: +mean(arr.map(fpts)).toFixed(1),
+    opp: +mean(arr.map(fopp)).toFixed(1),
+    diff: +mean(arr.map(g => fpts(g) - fopp(g))).toFixed(1),
+    tov: +mean(arr.map(teamTOV)).toFixed(1),
+    fgPct: (() => { const ps = arr.map(teamFG); return ps.some(p => p.pct === null) ? null : Math.round(mean(ps.map(p => p.pct))); })(),
+  } : null;
+  let trendSplit = null;
+  if (earlyG.length && recentG.length) {
+    const early = periodOf(earlyG), recent = periodOf(recentG);
+    const defs = [
+      { k: '场均得分', a: early.pts, b: recent.pts, th: 3, dir: 'up' },
+      { k: '场均失分', a: early.opp, b: recent.opp, th: 3, dir: 'down' },
+      { k: '场均净胜', a: early.diff, b: recent.diff, th: 3, dir: 'up' },
+      { k: '场均失误', a: early.tov, b: recent.tov, th: 1.5, dir: 'down' },
+    ];
+    if (early.fgPct !== null && recent.fgPct !== null)
+      defs.push({ k: '命中率%', a: early.fgPct, b: recent.fgPct, th: 2, dir: 'up' });
+    const eWr = Math.round(earlyG.filter(g => res(g) === 'win').length / earlyG.length * 100);
+    const rWr = Math.round(recentG.filter(g => res(g) === 'win').length / recentG.length * 100);
+    defs.push({ k: '胜率%', a: eWr, b: rWr, th: 0, dir: 'up' });
+    const rows = defs.map(d => {
+      const delta = +(d.b - d.a).toFixed(1);
+      const flat = Math.abs(delta) <= d.th;
+      const state = flat ? 'flat' : (delta > 0) === (d.dir === 'up') ? 'good' : 'bad';
+      return { k: d.k, a: d.a, b: d.b, delta, state };
+    });
+    const goods = rows.filter(r => r.state === 'good').length;
+    const bads = rows.filter(r => r.state === 'bad').length;
+    const verdict = bads === 0 && goods > 0 ? '向好' : goods === 0 && bads > 0 ? '走低' : '混杂';
+    trendSplit = {
+      earlyN: earlyG.length, recentN: recentG.length, early, recent,
+      earlyWins: earlyG.filter(g => res(g) === 'win').length,
+      recentWins: recentG.filter(g => res(g) === 'win').length,
+      rows, verdict,
+    };
+  }
+
+  /* D2 球员轨迹：逐场得分序列 + 近 2 场贡献均值 vs 赛季均值 */
+  const trajectory = Object.values(players).map(p => {
+    const season = +(p.contrib.reduce((s, x) => s + x, 0) / p.contrib.length).toFixed(1);
+    const rc = p.contrib.slice(-2);
+    const last2 = +(rc.reduce((s, x) => s + x, 0) / rc.length).toFixed(1);
+    const delta = +(last2 - season).toFixed(1);
+    return {
+      name: p.name, ptsSeq: p.pts, seasonContrib: season, last2Contrib: last2, delta,
+      form: delta >= 2 ? '回暖' : delta <= -2 ? '下滑' : '平稳',
+    };
+  }).sort((a, b) => b.seasonContrib - a.seasonContrib);
+
+  /* D3 二番战：同一对手 ≥2 次交手，逐节净胜对比（模式比单场值钱） */
+  const byOpp = {};
+  for (const g of games) (byOpp[g.opponent] ||= []).push(g);
+  const rematches = Object.entries(byOpp)
+    .filter(([, gs]) => gs.length >= 2)
+    .map(([opponent, gs]) => ({
+      opponent,
+      games: gs.map(g => ({
+        date: g.date, us: fpts(g), them: fopp(g), result: res(g),
+        qDiff: [0, 1, 2, 3].map(q => gameDiff(g, q)),
+      })),
+    }));
+
+  return { n, winSplit, qAvg, leakQ, halves, comeback, blown, closeGames, opponents, playerRows, dualCore, dualCoreAvg, preGameLoad, trendSplit, trajectory, rematches };
 }
 
 function renderDeepAnalysis(main) {
@@ -398,6 +464,61 @@ function renderDeepAnalysis(main) {
   </table></div>
   <div class="hint">样本 ${d.n} 场，仅作方向性观察；负荷 = 比赛日之前 7 天内的训练+比赛 AU 合计。</div>`;
 
+  /* D1 球队趋势 */
+  let d1 = `<div class="hint">至少 2 场比赛才能对比趋势</div>`;
+  if (d.trendSplit) {
+    const t = d.trendSplit;
+    const fmtCell = (k, v) => {
+      if (k === '命中率%' || k === '胜率%') return v + '%';
+      if (k === '场均净胜') return (v > 0 ? '+' : '') + v;
+      return v;
+    };
+    const body = t.rows.map(r => {
+      const color = r.state === 'flat' ? 'var(--text-dim)' : r.state === 'good' ? '#34d399' : '#f87171';
+      const arrow = r.state === 'flat' ? '→' : r.delta > 0 ? '↑' : '↓';
+      const unit = (r.k === '命中率%' || r.k === '胜率%') ? 'pp' : '';
+      const dTxt = (r.delta > 0 ? '+' : '') + r.delta + unit;
+      return `<tr><td class="name">${r.k}</td><td>${fmtCell(r.k, r.a)}</td><td>${fmtCell(r.k, r.b)}</td><td style="color:${color}">${dTxt} ${arrow}</td></tr>`;
+    }).join('');
+    const vIcon = t.verdict === '向好' ? '✅' : t.verdict === '走低' ? '⚠' : '↕';
+    d1 = `<div class="card table-wrap"><table>
+      <thead><tr><th style="text-align:left">指标</th><th>之前 ${t.earlyN} 场</th><th>最近 ${t.recentN} 场</th><th>变化</th></tr></thead>
+      <tbody>${body}</tbody></table></div>
+      <div class="hint">${vIcon} <b>近期${t.verdict}</b>（之前 ${t.earlyN} 场 vs 最近 ${t.recentN} 场，窗口小，看方向不看点）</div>`;
+  }
+
+  /* D2 球员轨迹 */
+  const chip = (v, i, last) => `<span style="display:inline-block;min-width:24px;text-align:center;padding:1px 6px;border-radius:9px;margin:0 1px;font-size:12px;${i === last ? 'background:rgba(249,115,22,0.18);color:#f97316;font-weight:700' : 'background:rgba(255,255,255,0.06);color:var(--text-dim)'}">${v}</span>`;
+  const d2 = d.trajectory.length ? `<div class="card table-wrap"><table>
+    <thead><tr><th style="text-align:left">球员</th><th style="text-align:left">得分轨迹（按场次）</th><th>近2场贡献</th><th>赛季贡献</th><th>Δ</th><th>状态</th></tr></thead>
+    <tbody>${d.trajectory.map(p => {
+      const c = p.delta >= 2 ? '#34d399' : p.delta <= -2 ? '#f87171' : 'var(--text-dim)';
+      const mark = p.form === '回暖' ? '↑ 回暖' : p.form === '下滑' ? '↓ 下滑' : '→ 平稳';
+      return `<tr><td class="name">${esc(p.name)}</td>
+        <td style="text-align:left;white-space:nowrap">${p.ptsSeq.map((v, i) => chip(v, i, p.ptsSeq.length - 1)).join('<span style="color:#565e73">›</span>')}</td>
+        <td>${p.last2Contrib}</td><td>${p.seasonContrib}</td>
+        <td style="color:${c}">${p.delta > 0 ? '+' : ''}${p.delta}</td>
+        <td style="color:${c}">${mark}</td></tr>`;
+    }).join('')}</tbody></table></div>
+    <div class="hint">贡献值 = 得分+篮板+助攻−失误；状态阈值 |Δ|≥2。样本小时近 2 场与赛季均值高度重叠，以轨迹 chips 为主。</div>`
+    : `<div class="hint">还没有球员统计</div>`;
+
+  /* D3 二番战 */
+  let d3 = `<div class="hint">暂无交手 ≥2 次的对手 —— 联赛进入循环赛后这里自动出现二番战对比</div>`;
+  if (d.rematches.length) {
+    d3 = d.rematches.map(r => `
+      <div class="card table-wrap" style="margin-bottom:10px">
+        <div class="hint" style="margin:10px 0 4px"><b>vs ${esc(r.opponent)}</b>（${r.games.length} 次交手 · 逐节净胜变化 = 对手的针对性调整）</div>
+        <table>
+          <thead><tr><th style="text-align:left">日期</th><th>Q1净胜</th><th>Q2净胜</th><th>Q3净胜</th><th>Q4净胜</th><th>比分</th><th>结果</th></tr></thead>
+          <tbody>
+            ${r.games.map(g => `<tr><td class="name">${esc(g.date)}</td>${g.qDiff.map(v => diffCell(v)).join('')}<td>${g.us}:${g.them}</td><td>${g.result === 'win' ? '✅' : g.result === 'loss' ? '❌' : '➖'}</td></tr>`).join('')}
+            <tr><td class="name" style="color:var(--text-dim)">末场 − 首场</td>${[0, 1, 2, 3].map(q => diffCell(r.games[r.games.length - 1].qDiff[q] - r.games[0].qDiff[q])).join('')}<td colspan="2"></td></tr>
+          </tbody>
+        </table>
+      </div>`).join('');
+  }
+
   const dualRows = d.dualCore.map(x => `<span style="color:${x.share >= 50 ? '#f87171' : '#d1d5db'}">${x.date.slice(5)}：${x.share}%（${x.result === 'win' ? '胜' : '负'}）</span>`).join(' ｜ ');
   const dualJudge = d.dualCoreAvg >= 55 ? '⚠ 双核依赖偏高——得分点过于集中' : '✓ 得分点相对分散';
 
@@ -430,6 +551,14 @@ function renderDeepAnalysis(main) {
     <div class="section-title" style="margin-top:18px">C · 训练联动</div>
     <div class="hint" style="margin:4px 0 6px">C1 赛前负荷 vs 比赛表现（负荷-表现关系，样本小时只看方向）</div>
     ${c1}
+
+    <div class="section-title" style="margin-top:18px">D · 趋势与模式</div>
+    <div class="hint" style="margin:4px 0 6px">D1 球队趋势：我们最近是在变强还是变弱（前后窗口对比，指标由引擎判定）</div>
+    ${d1}
+    <div class="hint" style="margin:12px 0 6px">D2 球员轨迹：谁的手感在上升、谁在下滑</div>
+    ${d2}
+    <div class="hint" style="margin:12px 0 6px">D3 二番战：同对手再次交手的逐节模式（「模式」比单场更值钱）</div>
+    ${d3}
   `;
 }
 
@@ -1027,7 +1156,7 @@ const AI_SYSTEM_PROMPT = `你是一名业余篮球队的数据分析师兼教练
 3. 用中文，直接、专业、口语化；不奉承、不客套。
 4. 严格只输出一个 JSON 对象：不要 markdown 代码块，不要任何解释文字。格式：
 {"title":"一句话标题","mvp":{"name":"球员名","line":"X分Y篮板Z助攻"},"insights":[{"icon":"单个emoji","title":"不超过10字","text":"不超过60字"}],"suggestions":[{"title":"不超过10字","text":"不超过60字"}],"note":"不超过40字总结"}
-5. insights 给 3-5 条，优先覆盖：得分走势、失误、命中率、篮板、训练负荷与负荷风险，以及 deep 字段中的结构性漏点 / 双核依赖 / 角色画像（若存在）。recentTrainings 含膝盖反馈 knee（好/酸/痛）时，负荷相关洞察必须结合解读；load.acwrZone 非「数据不足」时，负荷洞察必须引用 ACWR 口径。
+5. insights 给 3-5 条，优先覆盖：得分走势、失误、命中率、篮板、训练负荷与负荷风险，以及 deep 字段中的结构性漏点 / 双核依赖 / 角色画像 / 趋势 trend（若存在）。recentTrainings 含膝盖反馈 knee（好/酸/痛）时，负荷相关洞察必须结合解读；load.acwrZone 非「数据不足」时，负荷洞察必须引用 ACWR 口径。
 6. suggestions 给 3-4 条：可执行的训练或战术调整，需与本场数据有因果关系。
 7. MVP 按得分/篮板/助攻综合判断；mvp.line 里的数字必须与 playerStats 逐字一致。
 8. deep 与 load 是预计算指标（structuralLeak=结构性漏点、dualCore=双核依赖、ACWR=负荷风险比）：引用时保持原口径与原数字，不得另造口径或四舍五入后当作新数字。`;
@@ -1082,6 +1211,12 @@ function buildAIContext(gameId) {
       pps: p.pps, fgPct: p.fgPct, roles: p.tags,
     })),
     preGameLoad: d.preGameLoad.map(x => ({ date: x.date.slice(5), load7dAU: x.load, result: x.result, margin: x.margin })),
+    trend: d.trendSplit ? {
+      window: `最近${d.trendSplit.recentN}场 vs 之前${d.trendSplit.earlyN}场`,
+      verdict: d.trendSplit.verdict,
+      rows: d.trendSplit.rows.map(r => ({ k: r.k, early: r.a, recent: r.b, delta: r.delta, state: r.state })),
+    } : null,
+    playerTrend: d.trajectory.map(t => ({ player: t.name, ptsByGame: t.ptsSeq, contribDelta: t.delta, form: t.form })),
   } : null;
   const acwr = acwrReport(dailyLoadSeries(28));
 
