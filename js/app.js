@@ -218,6 +218,7 @@ function teamFG(g) {
 }
 function teamTOV(g) { return g.stats.reduce((a, s) => a + s.tov, 0); }
 function teamREB(g) { return g.stats.reduce((a, s) => a + s.reb, 0); }
+function teamAST(g) { return g.stats.reduce((a, s) => a + s.ast, 0); }
 function gameDiff(g, q) { return g.us[q] - g.them[q]; }
 function contribOf(s) { return s.pts + s.reb + s.ast - s.tov; }
 
@@ -230,12 +231,13 @@ function deepAnalysis() {
   const mean = arr => arr.reduce((s, x) => s + x, 0) / arr.length;
 
   /* A1 胜负分野：同一指标在胜场/负场的均值差 */
-  const metrics = g => ({ pts: fpts(g), opp: fopp(g), tov: teamTOV(g), reb: teamREB(g), fgPct: teamFG(g).pct });
+  const metrics = g => ({ pts: fpts(g), opp: fopp(g), tov: teamTOV(g), reb: teamREB(g), ast: teamAST(g), fgPct: teamFG(g).pct });
   const W = games.filter(g => res(g) === 'win').map(metrics);
   const L = games.filter(g => res(g) === 'loss').map(metrics);
   const avgKeys = arr => arr.length ? {
     pts: +mean(arr.map(m => m.pts)).toFixed(1), opp: +mean(arr.map(m => m.opp)).toFixed(1),
     tov: +mean(arr.map(m => m.tov)).toFixed(1), reb: +mean(arr.map(m => m.reb)).toFixed(1),
+    ast: +mean(arr.map(m => m.ast)).toFixed(1),
     fgPct: arr.some(m => m.fgPct === null) ? null : Math.round(mean(arr.map(m => m.fgPct))),
   } : null;
   const winSplit = (W.length && L.length) ? { win: avgKeys(W), loss: avgKeys(L) } : null;
@@ -398,7 +400,54 @@ function deepAnalysis() {
       })),
     }));
 
-  return { n, winSplit, qAvg, leakQ, halves, comeback, blown, closeGames, opponents, playerRows, dualCore, dualCoreAvg, preGameLoad, trendSplit, trajectory, rematches };
+  /* E 胜负法则：可练指标的胜负区分度排序 + 中位数二分 If-Then 规则
+   * 得分/失分差是「结果」（A1 已列），这里只排「可以练」的杠杆。 */
+  let winSignals = null, winRules = null;
+  if (W.length && L.length) {
+    const meanOf = arr => +(arr.reduce((s, x) => s + x, 0) / arr.length).toFixed(1);
+    const medianOf = arr => {
+      const s = [...arr].sort((a, b) => a - b);
+      const mid = Math.floor(s.length / 2);
+      return Math.round((s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2) * 10) / 10;
+    };
+    const defs = [
+      { k: '失误', dir: 'low' }, { k: '篮板', dir: 'high' },
+      { k: '助攻', dir: 'high' }, { k: '命中率%', dir: 'high' },
+    ];
+    const controllable = g => ({
+      '失误': teamTOV(g), '篮板': teamREB(g), '助攻': teamAST(g), '命中率%': teamFG(g).pct,
+    });
+    const wv = games.filter(g => res(g) === 'win').map(controllable);
+    const lv = games.filter(g => res(g) === 'loss').map(controllable);
+    winSignals = defs.map(d => {
+      const wArr = wv.map(x => x[d.k]).filter(v => v !== null);
+      const lArr = lv.map(x => x[d.k]).filter(v => v !== null);
+      if (!wArr.length || !lArr.length) return null;
+      const wAvg = meanOf(wArr), lAvg = meanOf(lArr);
+      return { k: d.k, dir: d.dir, wAvg, lAvg, gap: +(Math.abs(wAvg - lAvg)).toFixed(1) };
+    }).filter(Boolean).sort((a, b) => b.gap - a.gap);
+
+    winRules = defs.map(d => {
+      const all = games.map(controllable).map(x => x[d.k]).filter(v => v !== null);
+      if (all.length < 3) return null;
+      const med = medianOf(all);
+      const good = [], bad = [];
+      for (const g of games) {
+        const v = controllable(g)[d.k];
+        if (v === null) continue;
+        const isGood = d.dir === 'low' ? v <= med : v >= med;
+        (isGood ? good : bad).push(res(g) === 'win');
+      }
+      if (!good.length || !bad.length) return null;
+      return {
+        k: d.k, median: med, dir: d.dir,
+        goodN: good.length, goodW: good.filter(Boolean).length,
+        badN: bad.length, badW: bad.filter(Boolean).length,
+      };
+    }).filter(Boolean);
+  }
+
+  return { n, winSplit, qAvg, leakQ, halves, comeback, blown, closeGames, opponents, playerRows, dualCore, dualCoreAvg, preGameLoad, trendSplit, trajectory, rematches, winSignals, winRules };
 }
 
 function renderDeepAnalysis(main) {
@@ -409,7 +458,7 @@ function renderDeepAnalysis(main) {
   let a1 = '<div class="hint">样本里胜场与负场并存才能对比</div>';
   if (d.winSplit) {
     const { win, loss } = d.winSplit;
-    const rows = [['得分', win.pts, loss.pts], ['失分', win.opp, loss.opp], ['失误', win.tov, loss.tov], ['篮板', win.reb, loss.reb]];
+    const rows = [['得分', win.pts, loss.pts], ['失分', win.opp, loss.opp], ['失误', win.tov, loss.tov], ['篮板', win.reb, loss.reb], ['助攻', win.ast, loss.ast]];
     if (win.fgPct !== null) rows.push(['命中率%', win.fgPct, loss.fgPct]);
     a1 = `<div class="card table-wrap"><table>
       <thead><tr><th style="text-align:left">指标</th><th>胜场均值</th><th>负场均值</th><th>差值</th></tr></thead>
@@ -519,6 +568,35 @@ function renderDeepAnalysis(main) {
       </div>`).join('');
   }
 
+  /* E1 胜负信号 */
+  let e1 = `<div class="hint">样本里胜场与负场并存才能对比胜负信号</div>`;
+  if (d.winSignals && d.winSignals.length) {
+    const top = d.winSignals[0];
+    const unit = top.k === '命中率%' ? 'pp' : top.k === '篮板' ? '个' : '次';
+    const verdict = top.gap > 0
+      ? `🎯 头号胜负信号：<b>${top.k}</b> —— 胜场比负场${top.dir === 'low' ? '少' : '多'} ${top.gap}${unit}`
+      : '四项可练指标在胜负场均值无区分度（小样本常见）';
+    e1 = `<div class="card table-wrap"><table>
+      <thead><tr><th style="text-align:left">可练指标</th><th>胜场均值</th><th>负场均值</th><th>区分度</th></tr></thead>
+      <tbody>${d.winSignals.map(s => `<tr><td class="name">${s.k}</td><td>${s.wAvg}</td><td>${s.lAvg}</td><td style="color:${s.gap > 0 ? 'var(--accent)' : 'var(--text-dim)'}">${s.gap}</td></tr>`).join('')}</tbody>
+    </table></div>
+    <div class="hint">${verdict}。得分/失分差是「结果」（A1 已列），这里只排「可以练」的杠杆。</div>`;
+  }
+
+  /* E2 If-Then 规则 */
+  let e2 = `<div class="hint">还没有足够的胜负样本生成规则（至少 3 场）</div>`;
+  if (d.winRules && d.winRules.length) {
+    e2 = `<div class="card table-wrap"><table>
+      <thead><tr><th style="text-align:left">规则（按赛季中位数二分）</th><th>好侧战绩</th><th>差侧战绩</th></tr></thead>
+      <tbody>${d.winRules.map(r => {
+        const goodTxt = r.dir === 'low' ? `${r.k} ≤ ${r.median}` : `${r.k} ≥ ${r.median}`;
+        const badTxt = r.dir === 'low' ? `${r.k} > ${r.median}` : `${r.k} < ${r.median}`;
+        return `<tr><td class="name">当 ${goodTxt}</td><td style="color:#34d399">${r.goodW}胜${r.goodN - r.goodW}负</td><td style="color:${r.badW === 0 ? '#f87171' : 'inherit'}">${r.badW}胜${r.badN - r.badW}负</td></tr>`;
+      }).join('')}</tbody>
+    </table></div>
+    <div class="hint">If-Then 规则是对已打比赛的<b>描述，不是预测</b>——样本 ≥8 场前当 checklist 用，别当定律。</div>`;
+  }
+
   const dualRows = d.dualCore.map(x => `<span style="color:${x.share >= 50 ? '#f87171' : '#d1d5db'}">${x.date.slice(5)}：${x.share}%（${x.result === 'win' ? '胜' : '负'}）</span>`).join(' ｜ ');
   const dualJudge = d.dualCoreAvg >= 55 ? '⚠ 双核依赖偏高——得分点过于集中' : '✓ 得分点相对分散';
 
@@ -559,6 +637,12 @@ function renderDeepAnalysis(main) {
     ${d2}
     <div class="hint" style="margin:12px 0 6px">D3 二番战：同对手再次交手的逐节模式（「模式」比单场更值钱）</div>
     ${d3}
+
+    <div class="section-title" style="margin-top:18px">E · 胜负法则</div>
+    <div class="hint" style="margin:4px 0 6px">E1 胜负信号：可练指标里，什么最能区分我们赢和输（按区分度排序）</div>
+    ${e1}
+    <div class="hint" style="margin:12px 0 6px">E2 If-Then 规则：赢球时的样子，写成可执行的 checklist</div>
+    ${e2}
   `;
 }
 
@@ -1043,7 +1127,7 @@ function renderReport(main) {
 
   main.innerHTML = `
     <div class="section-title">AI 赛后报告</div>
-    <div class="hint">选一场比赛，由大模型按固定框架生成：本场 MVP / 关键洞察 / 训练建议。报告中的数字被提示词约束为只能来自录入数据。</div>
+    <div class="hint">选一场比赛生成单场报告（MVP / 关键洞察 / 训练建议）；「🧭 阶段总结」则对赛季至今回答：我们是什么队、强在哪弱在哪、下阶段练什么。数字被提示词约束为只能来自录入数据。</div>
 
     <details class="card ai-settings" ${s.apiKey ? '' : 'open'}>
       <summary>⚙️ 模型设置（自带密钥 · 只存本浏览器，不上传、不入仓库）</summary>
@@ -1076,6 +1160,7 @@ function renderReport(main) {
       </div>
       <div class="btn-row">
         <button class="btn" id="btnGen">🤖 生成 AI 报告</button>
+        <button class="btn ghost" id="btnSeason">🧭 阶段总结报告</button>
         <button class="btn ghost" id="btnSample">查看示例版式</button>
         <button class="btn ghost" id="btnCard">📤 生成战报卡</button>
       </div>
@@ -1106,6 +1191,7 @@ function renderReport(main) {
   });
 
   $('#btnGen').addEventListener('click', () => generateReport($('#aiGame').value));
+  $('#btnSeason').addEventListener('click', () => generateSeasonReport());
   $('#btnCard').addEventListener('click', () => showShareCard($('#aiGame').value));
   $('#btnSample').addEventListener('click', () => {
     aiReport = null; aiMeta = null;
@@ -1166,31 +1252,13 @@ const AI_SYSTEM_PROMPT = `你是一名业余篮球队的数据分析师兼教练
 3. 用中文，直接、专业、口语化；不奉承、不客套。
 4. 严格只输出一个 JSON 对象：不要 markdown 代码块，不要任何解释文字。格式：
 {"title":"一句话标题","mvp":{"name":"球员名","line":"X分Y篮板Z助攻"},"insights":[{"icon":"单个emoji","title":"不超过10字","text":"不超过60字"}],"suggestions":[{"title":"不超过10字","text":"不超过60字"}],"note":"不超过40字总结"}
-5. insights 给 3-5 条，优先覆盖：得分走势、失误、命中率、篮板、训练负荷与负荷风险，以及 deep 字段中的结构性漏点 / 双核依赖 / 角色画像 / 趋势 trend（若存在）。recentTrainings 含膝盖反馈 knee（好/酸/痛）时，负荷相关洞察必须结合解读；load.acwrZone 非「数据不足」时，负荷洞察必须引用 ACWR 口径。
+5. insights 给 3-5 条，优先覆盖：得分走势、失误、命中率、篮板、训练负荷与负荷风险，以及 deep 字段中的结构性漏点 / 双核依赖 / 角色画像 / 趋势 trend / 胜负信号 winSignals（头号信号）/ If-Then 规则 winRules（若存在）。recentTrainings 含膝盖反馈 knee（好/酸/痛）时，负荷相关洞察必须结合解读；load.acwrZone 非「数据不足」时，负荷洞察必须引用 ACWR 口径。
 6. suggestions 给 3-4 条：可执行的训练或战术调整，需与本场数据有因果关系。
 7. MVP 按得分/篮板/助攻综合判断；mvp.line 里的数字必须与 playerStats 逐字一致。
 8. deep 与 load 是预计算指标（structuralLeak=结构性漏点、dualCore=双核依赖、ACWR=负荷风险比）：引用时保持原口径与原数字，不得另造口径或四舍五入后当作新数字。`;
 
-function buildAIContext(gameId) {
-  const g = db.games.find(x => x.id === gameId);
-  const nameOf = id => {
-    const p = db.players.find(x => x.id === id);
-    return p ? `#${p.number} ${p.name}` : '未知球员';
-  };
-  const game = {
-    date: g.date,
-    opponent: g.opponent,
-    usQuarters: g.us,
-    themQuarters: g.them,
-    usTotal: teamScore(g, 'us'),
-    themTotal: teamScore(g, 'them'),
-    review: g.review || '',
-    playerStats: g.stats.map(s => ({
-      player: nameOf(s.playerId),
-      pts: s.pts, reb: s.reb, ast: s.ast, tov: s.tov,
-      ...(Array.isArray(s.fg) ? { fg: s.fg[0] + '/' + s.fg[1] } : {}),
-    })),
-  };
+/* 赛季级预计算：单场报告与阶段总结共用（数字可直接引用，约束 AI 不另造口径） */
+function seasonPrecompute() {
   const seasonTotals = playerTotals().filter(r => r.gp > 0).map(r => ({
     player: `#${r.player.number} ${r.player.name}`,
     gp: r.gp, pts: r.pts, reb: r.reb, ast: r.ast, tov: r.tov,
@@ -1204,8 +1272,6 @@ function buildAIContext(gameId) {
   }));
   const recentTrainings = [...db.trainings].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5)
     .map(t => ({ date: t.date, type: t.type, rpe: t.intensity, minutes: t.minutes, knee: t.knee || '', note: t.note || '' }));
-
-  /* 预计算指标：深度分析引擎 + ACWR（数字可直接引用，约束 AI 不另造口径） */
   const d = deepAnalysis();
   const deep = d ? {
     sampleGames: d.n,
@@ -1227,15 +1293,78 @@ function buildAIContext(gameId) {
       rows: d.trendSplit.rows.map(r => ({ k: r.k, early: r.a, recent: r.b, delta: r.delta, state: r.state })),
     } : null,
     playerTrend: d.trajectory.map(t => ({ player: t.name, ptsByGame: t.ptsSeq, contribDelta: t.delta, form: t.form })),
+    winSignals: d.winSignals ? d.winSignals.map((s, i) => ({
+      k: s.k, winAvg: s.wAvg, lossAvg: s.lAvg, gap: s.gap, top: i === 0 && s.gap > 0,
+    })) : null,
+    winRules: d.winRules ? d.winRules.map(r => ({
+      rule: r.dir === 'low' ? `${r.k}≤${r.median}` : `${r.k}≥${r.median}`,
+      goodSide: `${r.goodW}胜${r.goodN - r.goodW}负`, badSide: `${r.badW}胜${r.badN - r.badW}负`,
+    })) : null,
   } : null;
   const acwr = acwrReport(dailyLoadSeries(28));
+  return {
+    seasonTotals, allGames, recentTrainings, deep,
+    load: { acwr: acwr.ratio, acwrZone: acwr.zone, acute7dAU: acwr.acute, chronic28dWeeklyAU: acwr.chronic },
+  };
+}
 
+function buildAIContext(gameId) {
+  const g = db.games.find(x => x.id === gameId);
+  const nameOf = id => {
+    const p = db.players.find(x => x.id === id);
+    return p ? `#${p.number} ${p.name}` : '未知球员';
+  };
+  const game = {
+    date: g.date,
+    opponent: g.opponent,
+    usQuarters: g.us,
+    themQuarters: g.them,
+    usTotal: teamScore(g, 'us'),
+    themTotal: teamScore(g, 'them'),
+    review: g.review || '',
+    playerStats: g.stats.map(s => ({
+      player: nameOf(s.playerId),
+      pts: s.pts, reb: s.reb, ast: s.ast, tov: s.tov,
+      ...(Array.isArray(s.fg) ? { fg: s.fg[0] + '/' + s.fg[1] } : {}),
+    })),
+  };
+  const pc = seasonPrecompute();
   return {
     system: AI_SYSTEM_PROMPT,
-    user: JSON.stringify({ game, seasonTotals, allGames, recentTrainings, deep, load: {
-      acwr: acwr.ratio, acwrZone: acwr.zone, acute7dAU: acwr.acute, chronic28dWeeklyAU: acwr.chronic,
-    } }),
+    user: JSON.stringify({ game, seasonTotals: pc.seasonTotals, allGames: pc.allGames, recentTrainings: pc.recentTrainings, deep: pc.deep, load: pc.load }),
     gameLabel: `${g.date} vs ${g.opponent}`,
+    gameId,
+  };
+}
+
+/* 阶段总结报告：回答「我们是什么队、强在哪弱在哪、下阶段练什么」 */
+const AI_SEASON_PROMPT = `你是一名业余篮球队的数据分析师。你会收到一支球队阶段至今的全量数据与预计算指标（JSON），请输出一份阶段总结报告，回答三个问题：我们是一支什么样的队、强在哪弱在哪、下阶段练什么。
+
+硬性规则：
+1. 只允许引用数据中存在的数字；数据里没有的信息一律不写，必要时写「数据不足」。绝不编造。
+2. 每条洞察必须包含具体数字或数字对比，禁止没有数字的空泛评论。
+3. 用中文，直接、专业、口语化；不奉承、不客套。
+4. 严格只输出一个 JSON 对象：不要 markdown 代码块，不要任何解释文字。格式：
+{"title":"一句话标题","identity":"不超过20字的球队画像","insights":[{"icon":"单个emoji","title":"不超过10字","text":"不超过60字"}],"suggestions":[{"title":"不超过10字","text":"不超过60字"}],"note":"不超过40字总结"}
+5. insights 给 4-6 条，优先覆盖：winSignals 的头号胜负信号、winRules 的 If-Then 规则、structuralLeak、dualCore、trend 的 verdict 与方向、playerTrend 的回暖/下滑（若存在）、负荷 load（ACWR 区间）与 recentTrainings 膝盖反馈 knee 的联动（若存在）。
+6. suggestions 给 3-4 条：下一阶段的训练优先级排序，需与上述信号有因果关系。
+7. deep 与 load 是预计算指标：引用时保持原口径与原数字，不得另造口径或四舍五入后当作新数字。
+8. 样本小于 5 场时，表述用「看方向」的措辞，不得断言确定性规律。`;
+
+function buildSeasonContext() {
+  const pc = seasonPrecompute();
+  const games = gamesSorted();
+  const wins = games.filter(g => gameResult(g) === 'win').length;
+  const losses = games.filter(g => gameResult(g) === 'loss').length;
+  return {
+    system: AI_SEASON_PROMPT,
+    user: JSON.stringify({
+      record: { games: games.length, wins, losses, draws: games.length - wins - losses },
+      seasonTotals: pc.seasonTotals, allGames: pc.allGames,
+      recentTrainings: pc.recentTrainings, deep: pc.deep, load: pc.load,
+    }),
+    gameLabel: `阶段总结 · ${games.length} 场`,
+    gameId: null,
   };
 }
 
@@ -1284,7 +1413,7 @@ function extractJSON(text) {
   try { return JSON.parse(t.slice(a, b + 1)); } catch (e) { return null; }
 }
 
-async function generateReport(gameId) {
+async function runAIReport(ctx) {
   const s = loadAISettings();
   if (!s.apiKey) { alert('请先在「模型设置」里填入 API Key'); return; }
   const status = $('#aiStatus');
@@ -1292,7 +1421,6 @@ async function generateReport(gameId) {
   status.className = 'ai-status loading';
   status.innerHTML = '<span class="spinner"></span> 分析中…（推理模型可能需要 30-90 秒，请勿关闭页面）';
   try {
-    const ctx = buildAIContext(gameId);
     const content = await callAI(s, ctx.system, ctx.user);
     const rep = extractJSON(content);
     if (!rep || !Array.isArray(rep.insights)) throw new Error('返回内容解析失败，请重试一次或更换模型');
@@ -1301,7 +1429,7 @@ async function generateReport(gameId) {
       model: s.model || (AI_PROVIDERS[s.provider] || AI_PROVIDERS.gemini).model,
       at: new Date().toLocaleString('zh-CN'),
       gameLabel: ctx.gameLabel,
-      gameId,
+      gameId: ctx.gameId ?? null,
     };
     $('#aiReportArea').innerHTML = renderAIReport(aiReport, aiMeta);
     status.className = 'ai-status ok';
@@ -1312,6 +1440,9 @@ async function generateReport(gameId) {
     status.textContent = '✗ ' + (e.message || '调用失败');
   }
 }
+
+function generateReport(gameId) { return runAIReport(buildAIContext(gameId)); }
+function generateSeasonReport() { return runAIReport(buildSeasonContext()); }
 
 function renderAIReport(rep, meta) {
   const insights = Array.isArray(rep.insights) ? rep.insights : [];
@@ -1324,6 +1455,7 @@ function renderAIReport(rep, meta) {
 
     <div class="report-title">${esc(rep.title || '赛后分析报告')}</div>
     <div class="report-sub">${esc(meta.gameLabel)} ｜ 生成引擎 ${esc(meta.model)}</div>
+    ${rep.identity ? `<div class="hint" style="margin:8px 0 0">🧭 球队画像：${esc(rep.identity)}</div>` : ''}
 
     ${rep.mvp ? `
     <div class="mvp-card">

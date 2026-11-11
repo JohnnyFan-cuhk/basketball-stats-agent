@@ -112,3 +112,60 @@ eq(payload.deep.playerTrend.length, 1, 'AI playerTrend 注入');
 eq(payload.deep.playerTrend[0].ptsByGame.length, 6, 'AI playerTrend 轨迹 6 点');
 ok(typeof payload.deep.structuralLeak === 'string', 'AI deep 原有字段仍在（防回归）');
 ok(payload.deep.winSplit !== undefined && Array.isArray(payload.deep.playerProfiles), 'AI deep 原有结构完整（防回归）');
+
+/* ---------- 案例6 · E 模块胜负法则（示例手算对照） ----------
+ * W={g1,g3} L={g2}
+ * 篮板 W(40+46)/2=43 L31 gap12 ｜ 助攻 W(20+24)/2=22 L11 gap11
+ * 命中率% W(45+52)/2=48.5 L37 gap11.5 ｜ 失误 W(16+14)/2=15 L20 gap5
+ * 中位数：失误16 篮板40 助攻20 命中率45 */
+console.log('案例6 · E 模块胜负法则（手算对照）');
+db.players = SAMPLE_PLAYERS.map(p => ({ ...p }));
+db.games = SAMPLE_GAMES.map(g => JSON.parse(JSON.stringify(g)));
+const d5 = deepAnalysis();
+eq(d5.winSignals.map(s => s.k), ['篮板', '命中率%', '助攻', '失误'], 'E1 信号排序=区分度降序');
+eq(d5.winSignals[0], { k: '篮板', dir: 'high', wAvg: 43, lAvg: 31, gap: 12 }, 'E1 头号信号=篮板 gap12');
+eq(d5.winSignals[1].wAvg, 48.5, 'E1 命中率胜场均值 48.5');
+eq(d5.winSignals[3], { k: '失误', dir: 'low', wAvg: 15, lAvg: 20, gap: 5 }, 'E1 失误 gap5');
+eq(d5.winRules.length, 4, 'E2 4 条规则');
+eq(d5.winRules[0], { k: '失误', median: 16, dir: 'low', goodN: 2, goodW: 2, badN: 1, badW: 0 }, 'E2 失误≤16 → 2胜0负');
+eq(d5.winRules[1], { k: '篮板', median: 40, dir: 'high', goodN: 2, goodW: 2, badN: 1, badW: 0 }, 'E2 篮板≥40 → 2胜0负');
+eq(d5.winRules[2], { k: '助攻', median: 20, dir: 'high', goodN: 2, goodW: 2, badN: 1, badW: 0 }, 'E2 助攻≥20 → 2胜0负');
+eq(d5.winRules[3], { k: '命中率%', median: 45, dir: 'high', goodN: 2, goodW: 2, badN: 1, badW: 0 }, 'E2 命中率≥45 → 2胜0负');
+
+/* ---------- 案例7 · E 边界：可控指标完全相同 → 无区分度 ---------- */
+console.log('案例7 · E 边界：无区分度');
+db.games = [
+  mkGame('x1', '2026-01-01', '甲', 20, 25), mkGame('x2', '2026-01-08', '乙', 22, 20),
+  mkGame('x3', '2026-01-15', '甲', 24, 22), mkGame('x4', '2026-01-22', '丙', 18, 26),
+  mkGame('x5', '2026-01-29', '丁', 26, 18), mkGame('x6', '2026-02-05', '丙', 28, 16),
+];
+const d6 = deepAnalysis();
+eq(d6.winSignals.length, 3, 'E1 无投篮数据 → 3 项信号');
+eq(d6.winSignals.every(s => s.gap === 0), true, 'E1 区分度全 0');
+eq(d6.winRules, [], 'E2 差侧桶为空 → 规则空');
+
+/* ---------- 案例8 · E 单场边界 ---------- */
+console.log('案例8 · E 单场边界');
+db.games = [db.games[0]];
+const d7 = deepAnalysis();
+eq(d7.winSignals, null, '单场（只有负场）→ winSignals null');
+eq(d7.winRules, null, '单场 → winRules null');
+
+/* ---------- 案例9 · AI 上下文：E 注入 + 阶段总结 ---------- */
+console.log('案例9 · AI 上下文 E 注入 + 阶段总结');
+db.games = SAMPLE_GAMES.map(g => JSON.parse(JSON.stringify(g)));
+const ctx2 = buildAIContext('g1');
+const p2 = JSON.parse(ctx2.user);
+ok(p2.game && p2.game.usQuarters, '单场上下文 game 字段仍在（防回归）');
+eq(p2.deep.winSignals[0].k, '篮板', 'AI winSignals 注入');
+eq(p2.deep.winRules[0].rule, '失误≤16', 'AI winRules 注入且口径压缩正确');
+eq(p2.deep.winRules[0].goodSide, '2胜0负', 'AI winRules 战绩注入');
+const sctx = buildSeasonContext();
+const ps = JSON.parse(sctx.user);
+eq(ps.record, { games: 3, wins: 2, losses: 1, draws: 0 }, 'season record=2胜1负0平');
+ok(ps.game === undefined, 'season 上下文无单场字段');
+ok(ps.deep && ps.deep.winSignals && ps.deep.winRules && ps.deep.trend, 'season deep 含 E/D 模块');
+ok(typeof AI_SEASON_PROMPT === 'string' && AI_SEASON_PROMPT.includes('只允许引用数据中存在的数字'), 'season prompt 硬性规则在位');
+ok(AI_SEASON_PROMPT.includes('看方向'), 'season prompt 小样本规则在位');
+eq(sctx.gameLabel, '阶段总结 · 3 场', 'season gameLabel');
+eq(sctx.gameId, null, 'season gameId=null（战报卡不复用总结洞察）');
