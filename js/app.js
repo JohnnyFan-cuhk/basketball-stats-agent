@@ -1027,9 +1027,10 @@ const AI_SYSTEM_PROMPT = `你是一名业余篮球队的数据分析师兼教练
 3. 用中文，直接、专业、口语化；不奉承、不客套。
 4. 严格只输出一个 JSON 对象：不要 markdown 代码块，不要任何解释文字。格式：
 {"title":"一句话标题","mvp":{"name":"球员名","line":"X分Y篮板Z助攻"},"insights":[{"icon":"单个emoji","title":"不超过10字","text":"不超过60字"}],"suggestions":[{"title":"不超过10字","text":"不超过60字"}],"note":"不超过40字总结"}
-5. insights 给 3-5 条，优先覆盖：得分走势、失误、命中率、篮板、训练负荷（若近期训练数据支持，其中含膝盖反馈 knee 字段（好/酸/痛）时必须结合解读）。
+5. insights 给 3-5 条，优先覆盖：得分走势、失误、命中率、篮板、训练负荷与负荷风险，以及 deep 字段中的结构性漏点 / 双核依赖 / 角色画像（若存在）。recentTrainings 含膝盖反馈 knee（好/酸/痛）时，负荷相关洞察必须结合解读；load.acwrZone 非「数据不足」时，负荷洞察必须引用 ACWR 口径。
 6. suggestions 给 3-4 条：可执行的训练或战术调整，需与本场数据有因果关系。
-7. MVP 按得分/篮板/助攻综合判断；mvp.line 里的数字必须与 playerStats 逐字一致。`;
+7. MVP 按得分/篮板/助攻综合判断；mvp.line 里的数字必须与 playerStats 逐字一致。
+8. deep 与 load 是预计算指标（structuralLeak=结构性漏点、dualCore=双核依赖、ACWR=负荷风险比）：引用时保持原口径与原数字，不得另造口径或四舍五入后当作新数字。`;
 
 function buildAIContext(gameId) {
   const g = db.games.find(x => x.id === gameId);
@@ -1065,9 +1066,30 @@ function buildAIContext(gameId) {
   const recentTrainings = [...db.trainings].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5)
     .map(t => ({ date: t.date, type: t.type, rpe: t.intensity, minutes: t.minutes, knee: t.knee || '', note: t.note || '' }));
 
+  /* 预计算指标：深度分析引擎 + ACWR（数字可直接引用，约束 AI 不另造口径） */
+  const d = deepAnalysis();
+  const deep = d ? {
+    sampleGames: d.n,
+    winSplit: d.winSplit,
+    quarterDiffAvg: d.qAvg,
+    structuralLeak: `Q${d.leakQ + 1}（场均净胜 ${d.qAvg[d.leakQ]}）`,
+    comeback: d.comeback,
+    blown: d.blown,
+    dualCore: { perGame: d.dualCore.map(x => x.date.slice(5) + ':' + x.share + '%'), avg: d.dualCoreAvg + '%' },
+    playerProfiles: d.playerRows.map(p => ({
+      player: p.name, pos: p.pos, contribAvg: p.contrib, ptsAvg: p.pts, rebAvg: p.reb,
+      astAvg: p.ast, tovAvg: p.tov, ptsMax: p.max, ptsStd: p.std, astTov: p.astTov,
+      pps: p.pps, fgPct: p.fgPct, roles: p.tags,
+    })),
+    preGameLoad: d.preGameLoad.map(x => ({ date: x.date.slice(5), load7dAU: x.load, result: x.result, margin: x.margin })),
+  } : null;
+  const acwr = acwrReport(dailyLoadSeries(28));
+
   return {
     system: AI_SYSTEM_PROMPT,
-    user: JSON.stringify({ game, seasonTotals, allGames, recentTrainings }),
+    user: JSON.stringify({ game, seasonTotals, allGames, recentTrainings, deep, load: {
+      acwr: acwr.ratio, acwrZone: acwr.zone, acute7dAU: acwr.acute, chronic28dWeeklyAU: acwr.chronic,
+    } }),
     gameLabel: `${g.date} vs ${g.opponent}`,
   };
 }
