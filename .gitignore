@@ -10,3 +10,6 @@ desktop.ini
 # 数据抓取的原始缓存（转换产物 examples/*.json 才入仓）
 examples/raw/
 
+
+# 误放入仓库的课程作业（IERG2820），禁止入公开仓
+marketing/cards/Asssignment/
